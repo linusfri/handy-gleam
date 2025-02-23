@@ -15,5 +15,7 @@ pkgs.buildGleamApplication {
   # `pkgs.erlang`.
   # erlangPackage = pkgs.erlang_nox;
 
+  buildInputs = with pkgs; [ erlang_27 ];
+
   src = ./.;
 }
