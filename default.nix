@@ -13,7 +13,7 @@ pkgs.buildGleamApplication {
 
   # Erlang package can be overridden but defaults to
   # `pkgs.erlang`.
-  # erlangPackage = pkgs.erlang_nox;
+  erlangPackage = pkgs.erlang_27;
 
   src = ./.;
 }
