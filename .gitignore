@@ -13,4 +13,5 @@ devenv.local.nix
 *.ez
 /build
 erl_crash.dump
+result
 
