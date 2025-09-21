@@ -1,6 +1,5 @@
 import auth_server/web
 import gleam/http.{Get}
-import gleam/string_tree
 import wisp.{type Request, type Response}
 
 pub fn handle_request(req: Request) -> Response {
@@ -19,7 +18,6 @@ pub fn handle_request(req: Request) -> Response {
 fn home_page(req: Request) -> Response {
   use <- wisp.require_method(req, Get)
 
-  let html = string_tree.from_string("App working")
   wisp.ok()
-  |> wisp.html_body(html)
+  |> wisp.html_body("App working")
 }
