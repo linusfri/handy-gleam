@@ -29,23 +29,23 @@ fn login(req: Request) -> Response {
   use <- wisp.require_method(req, Post)
   use form <- wisp.require_form(req)
 
-  let request_body = case form.values {
-    form_values ->
-      list.fold(form_values, "", fn(acc, form_value) {
-        form_value.0 <> "=" <> form_value.1 <> "&" <> acc
-      })
-      |> string.drop_end(1)
-  }
+  let request_body =
+    list.fold(form.values, "", fn(acc, form_value) {
+      form_value.0 <> "=" <> form_value.1 <> "&" <> acc
+    })
+    |> string.drop_end(1)
 
-  let response =
+  let request =
     request.to(config().auth_endpoint <> "/token")
     |> result.map(fn(req) {
       request.set_method(req, http.Post)
       |> request.set_header("content-Type", "application/x-www-form-urlencoded")
       |> request.set_body(request_body)
     })
-    |> result.try(fn(req) {
-      case httpc.send(req) {
+
+  let response =
+    result.try(request, fn(request) {
+      case httpc.send(request) {
         Ok(res) ->
           case res.status {
             200 | 401 -> Ok(wisp.json_response(res.body, res.status))
