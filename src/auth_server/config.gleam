@@ -3,11 +3,11 @@ import gleam/io
 import gleam/list
 
 pub type Config {
-  Config(secret_key: String)
+  Config(secret_key: String, auth_endpoint: String)
 }
 
 pub fn get_config() -> Config {
-  let envs = ["SECRET_KEY"]
+  let envs = ["SECRET_KEY", "AUTH_ENDPOINT"]
 
   list.each(envs, fn(env) {
     case envoy.get(env) {
@@ -20,5 +20,8 @@ pub fn get_config() -> Config {
   })
 
   let assert Ok(secret_key) = envoy.get("SECRET_KEY")
-  Config(secret_key)
+  let assert Ok(auth_endpoint) = envoy.get("AUTH_ENDPOINT")
+  Config(secret_key, auth_endpoint)
 }
+
+pub const config = get_config

@@ -1,16 +1,19 @@
+import auth_server/config.{config}
 import auth_server/web
-import gleam/http.{Get}
+import gleam/http.{Get, Post}
+import gleam/http/request
+import gleam/httpc
+import gleam/list
+import gleam/result
+import gleam/string
 import wisp.{type Request, type Response}
 
 pub fn handle_request(req: Request) -> Response {
   use req <- web.middleware(req)
 
-  // Wisp doesn't have a special router abstraction, instead we recommend using
-  // regular old pattern matching. This is faster than a router, is type safe,
-  // and means you don't have to learn or be limited by a special DSL.
   case wisp.path_segments(req) {
-    // This matches `/`.
     [] -> home_page(req)
+    ["login"] -> login(req)
     _ -> wisp.ok()
   }
 }
@@ -20,4 +23,47 @@ fn home_page(req: Request) -> Response {
 
   wisp.ok()
   |> wisp.html_body("App working")
+}
+
+fn login(req: Request) -> Response {
+  use <- wisp.require_method(req, Post)
+  use form <- wisp.require_form(req)
+
+  let request_body = case form.values {
+    form_values ->
+      list.fold(form_values, "", fn(acc, form_value) {
+        form_value.0 <> "=" <> form_value.1 <> "&" <> acc
+      })
+      |> string.drop_end(1)
+  }
+
+  let response =
+    request.to(config().auth_endpoint <> "/token")
+    |> result.map(fn(req) {
+      request.set_method(req, http.Post)
+      |> request.set_header("content-Type", "application/x-www-form-urlencoded")
+      |> request.set_body(request_body)
+    })
+    |> result.try(fn(req) {
+      case httpc.send(req) {
+        Ok(res) ->
+          case res.status {
+            200 | 401 -> Ok(wisp.json_response(res.body, res.status))
+            _ -> Error(Nil)
+          }
+        Error(_) -> Error(Nil)
+      }
+    })
+
+  case response {
+    Ok(res) ->
+      case res.status {
+        200 -> {
+          // Actually log in user, add to db and store token there. 
+          res
+        }
+        _ -> res
+      }
+    Error(_) -> wisp.json_response("Login failed", 400)
+  }
 }
