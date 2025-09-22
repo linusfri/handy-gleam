@@ -72,6 +72,21 @@
         "type": "github"
       }
     },
+    "gleam-pkgs": {
+      "locked": {
+        "lastModified": 1758277210,
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "8eaee110344796db060382e15d3af0a9fc396e0e",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
     "nixpkgs": {
       "locked": {
         "lastModified": 1758470875,
@@ -91,6 +106,7 @@
       "inputs": {
         "devenv": "devenv",
         "git-hooks": "git-hooks",
+        "gleam-pkgs": "gleam-pkgs",
         "nixpkgs": "nixpkgs",
         "pre-commit-hooks": [
           "git-hooks"
