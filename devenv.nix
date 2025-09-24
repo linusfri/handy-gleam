@@ -13,7 +13,7 @@ in
 
     env = {
       SECRET_KEY = "supersecret";
-      AUTH_ENDPOINT = "https://keycloak.friikod.se/realms/GleamAuth/protocol/openid-connect";
+      AUTH_ENDPOINT = "keycloak.friikod.se/realms/GleamAuth/protocol/openid-connect";
     };
 
     processes.app.exec = ''
