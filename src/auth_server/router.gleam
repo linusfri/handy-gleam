@@ -47,7 +47,7 @@ fn send_request(request: request.Request(String)) -> Result(Response, Response) 
         200 -> Ok(wisp.json_response(res.body, res.status))
         _ -> Error(wisp.json_response(res.body, res.status))
       }
-    Error(err) -> {
+    Error(_) -> {
       Error(wisp.json_response("Internal server error", 500))
     }
   }
