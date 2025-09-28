@@ -4,7 +4,7 @@ import gleam/http.{Get, Post}
 import gleam/http/request
 import gleam/httpc
 import gleam/list
-import gleam/option.{type Option, None, Some}
+import gleam/option.{None, Some}
 import gleam/string
 import gleam/uri
 import glow_auth.{type Client, Client}
@@ -19,7 +19,7 @@ pub type LoginFormData {
     grant_type: String,
     password: String,
     username: String,
-    request_body: Option(String),
+    values: List(#(String, String)),
   )
 }
 
@@ -53,16 +53,20 @@ fn send_request(request: request.Request(String)) -> Result(Response, Response) 
   }
 }
 
-fn build_login_request(form_data: LoginFormData) -> request.Request(String) {
-  let client = create_client(form_data.client_id, form_data.client_secret)
+fn build_login_request(
+  login_form_data: LoginFormData,
+) -> request.Request(String) {
+  let client =
+    create_client(login_form_data.client_id, login_form_data.client_secret)
   let token_endpoint = RelativePath("token")
+  let request_body = build_request_body(login_form_data.values)
 
   client_credentials(client, token_endpoint, RequestBody, DefaultScope)
-  |> request.set_body(option.unwrap(form_data.request_body, ""))
+  |> request.set_body(request_body)
 }
 
-fn build_request_body(form: wisp.FormData) {
-  list.fold(form.values, "", fn(acc, name_value) {
+fn build_request_body(form_values: List(#(String, String))) {
+  list.fold(form_values, "", fn(acc, name_value) {
     name_value.0 <> "=" <> name_value.1 <> "&" <> acc
   })
   |> string.drop_end(1)
@@ -80,7 +84,6 @@ fn login(req: Request) {
       #("password", password),
       #("username", username),
     ] -> {
-      let request_body = build_request_body(form)
       let form_data =
         LoginFormData(
           client_id,
@@ -88,7 +91,7 @@ fn login(req: Request) {
           grant_type,
           password,
           username,
-          Some(request_body),
+          values: form.values,
         )
       let login_request = build_login_request(form_data)
       case send_request(login_request) {
