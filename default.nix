@@ -13,7 +13,12 @@ pkgs.buildGleamApplication {
 
   # Erlang package can be overridden but defaults to
   # `pkgs.erlang`.
-  erlangPackage = pkgs.erlang_27;
+  # erlangPackage = pkgs.erlang_28;
+
+  # Include this, otherwise build fails
+  rebar3Package = pkgs.rebar3WithPlugins {
+    plugins = with pkgs.beamPackages; [ pc ];
+  };
 
   src = ./.;
 }
