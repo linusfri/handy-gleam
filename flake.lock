@@ -5,26 +5,26 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1765657470,
-        "narHash": "sha256-K2BfSvGBmlIDWSIB8aBH6OAwECdXTUMpNfp6RwEBOeI=",
-        "owner": "linusfri",
+        "lastModified": 1765663723,
+        "narHash": "sha256-/0xQYAEYpGRlHMOPAuGS5Wh0S2+iVqxKGB1p6UQR4dc=",
+        "owner": "arnarg",
         "repo": "nix-gleam",
-        "rev": "52da16c9386ede9c711193902d9fdf2e64884ea7",
+        "rev": "242258cc33f3f95ae9d9c2f1a504ccb05fb4580b",
         "type": "github"
       },
       "original": {
-        "owner": "linusfri",
+        "owner": "arnarg",
         "repo": "nix-gleam",
         "type": "github"
       }
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1765472234,
-        "narHash": "sha256-9VvC20PJPsleGMewwcWYKGzDIyjckEz8uWmT0vCDYK0=",
+        "lastModified": 1764950072,
+        "narHash": "sha256-BmPWzogsG2GsXZtlT+MTcAWeDK5hkbGRZTeZNW42fwA=",
         "owner": "nixos",
         "repo": "nixpkgs",
-        "rev": "2fbfb1d73d239d2402a8fe03963e37aab15abe8b",
+        "rev": "f61125a668a320878494449750330ca58b78c557",
         "type": "github"
       },
       "original": {
