@@ -7,7 +7,6 @@ import gleam/http/request as http_request
 import gleam/json
 import gleam/list
 import gleam/option.{None, Some}
-import gleam/result
 import gleam/string
 import gleam/uri
 import glow_auth.{type Client, Client}
