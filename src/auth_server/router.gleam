@@ -8,8 +8,9 @@ pub fn handle_request(req: Request) -> Response {
 
   case wisp.path_segments(req) {
     [] -> home_page(req)
-    ["login"] -> auth.login(req)
-    _ -> wisp.ok()
+    ["auth", "login"] -> auth.login(req)
+    ["auth", "user"] -> auth.get_current_user(req)
+    _ -> wisp.json_response("Not found", 404)
   }
 }
 
