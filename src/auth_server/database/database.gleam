@@ -1,0 +1,19 @@
+import auth_server/config.{config}
+import gleam/erlang/process
+import gleam/otp/static_supervisor
+import pog
+
+/// Initializes database connection
+pub fn start_application_supervisor(pool_name: process.Name(pog.Message)) {
+  let pool_child =
+    pog.default_config(pool_name)
+    |> pog.host(config().pghost)
+    |> pog.user("auth_server")
+    |> pog.database("auth_server")
+    |> pog.pool_size(15)
+    |> pog.supervised
+
+  static_supervisor.new(static_supervisor.RestForOne)
+  |> static_supervisor.add(pool_child)
+  |> static_supervisor.start
+}

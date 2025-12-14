@@ -1,7 +1,9 @@
 import auth_server/auth/auth
 import auth_server/auth/user_service
 import auth_server/web
+import gleam/erlang/process
 import gleam/http.{Get}
+import pog
 import wisp.{type Request, type Response}
 
 pub fn handle_request(req: Request) -> Response {
@@ -17,6 +19,8 @@ pub fn handle_request(req: Request) -> Response {
 
 fn home_page(req: Request) -> Response {
   use <- wisp.require_method(req, Get)
+
+  let db = pog.named_connection(process.new_name("auth_db"))
 
   wisp.ok()
   |> wisp.html_body("App working")

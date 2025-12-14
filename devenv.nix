@@ -1,4 +1,8 @@
-{ pkgs, inputs, ... }:
+{
+  pkgs,
+  inputs,
+  ...
+}:
 let
   gleamPkgs = import inputs.gleam-pkgs { system = pkgs.stdenv.system; };
 in

@@ -1,4 +1,5 @@
 import auth_server/config
+import auth_server/database/database
 import auth_server/router
 import auth_server/utils/hot_reload.{enable_hot_reload}
 import gleam/erlang/process
@@ -9,6 +10,9 @@ import wisp/wisp_mist
 pub fn main() {
   wisp.configure_logger()
   let config = config.get_config()
+
+  let assert Ok(_) =
+    database.start_application_supervisor(process.new_name("auth_db"))
 
   let _ = enable_hot_reload()
 
