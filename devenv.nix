@@ -3,6 +3,10 @@ let
   gleamPkgs = import inputs.gleam-pkgs { system = pkgs.stdenv.system; };
 in
 {
+  imports = [
+    ./nix_modules/postgres.nix
+  ];
+
   config = {
     hosts."auth-server.local" = "127.0.0.1";
 
