@@ -1,24 +1,24 @@
-import gleam/dynamic.{type Dynamic}
 import gleam/dynamic/decode
 import gleam/http/request
 import gleam/httpc
-import gleam/int
 import gleam/json
 import gleam/string
+import wisp
 
-pub fn send_request(request: request.Request(String)) -> Result(Dynamic, String) {
+pub fn send_request(request: request.Request(String)) {
   case httpc.send(request) {
     Ok(res) ->
-      case res.status {
-        200 ->
+      case res.status, res.body {
+        200, _ ->
           case json.parse(res.body, decode.dynamic) {
             Ok(json_data) -> Ok(json_data)
-            Error(_) -> Error("Failed to parse JSON response")
+            Error(_) ->
+              Error(wisp.json_response("Failed to parse JSON response", 500))
           }
-        status -> Error("HTTP " <> int.to_string(status))
+        status, body -> Error(wisp.json_response(body, status))
       }
     Error(err) -> {
-      Error(string.inspect(err))
+      Error(wisp.json_response(string.inspect(err), 500))
     }
   }
 }

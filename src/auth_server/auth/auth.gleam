@@ -7,6 +7,7 @@ import gleam/http/request as http_request
 import gleam/json
 import gleam/list
 import gleam/option.{None, Some}
+import gleam/result
 import gleam/string
 import gleam/uri
 import glow_auth.{type Client, Client}
@@ -219,32 +220,26 @@ fn get_user(access_token: String) {
 
 fn build_login_response(form_data: LoginFormData) {
   let login_request = build_login_request(form_data)
+
   let token_response = case api_client.send_request(login_request) {
     Ok(res) ->
       case token_response_decoder(res) {
         Ok(token_response) -> Ok(token_response)
-        Error(_) -> Error("Failed to decode token response")
+        Error(_) -> Error(wisp.json_response("Could not decode token", 500))
       }
-    Error(message) -> Error(message)
+    Error(wisp_error) -> Error(wisp_error)
   }
 
-  case token_response {
-    Ok(token) -> {
-      case get_user(token.access_token) {
-        Ok(user_response) -> {
-          case user_decoder(user_response) {
-            Ok(user) -> {
-              let login_response = LoginResponse(token: token, user: user)
-              let json_body = login_response_encoder(login_response)
-              wisp.json_response(json.to_string(json_body), 200)
-            }
-            Error(_) -> wisp.json_response("Failed to decode user info", 500)
-          }
-        }
-        Error(message) -> wisp.json_response(message, 401)
-      }
+  use token <- result.try(token_response)
+  use user_response <- result.try(get_user(token.access_token))
+
+  case user_decoder(user_response) {
+    Ok(user) -> {
+      let login_response = LoginResponse(token: token, user: user)
+      let json_body = login_response_encoder(login_response)
+      Ok(wisp.json_response(json.to_string(json_body), 200))
     }
-    Error(message) -> wisp.json_response(message, 401)
+    Error(_) -> Error(wisp.json_response("Failed to decode user info", 500))
   }
 }
 
@@ -253,9 +248,11 @@ pub fn login(req: Request) {
   use json_body <- wisp.require_json(req)
 
   case login_form_decoder(json_body) {
-    Ok(form_data) -> {
-      build_login_response(form_data)
-    }
+    Ok(form_data) ->
+      case build_login_response(form_data) {
+        Ok(response) -> response
+        Error(error_response) -> error_response
+      }
     Error(_) -> wisp.json_response("Invalid JSON body", 400)
   }
 }
@@ -284,8 +281,6 @@ pub fn get_current_user(req) {
         Error(_) -> wisp.json_response("Failed to decode user", 500)
       }
     }
-    Error(message) -> {
-      wisp.json_response(message, 401)
-    }
+    Error(wisp_error) -> wisp_error
   }
 }
