@@ -1,6 +1,7 @@
 {
   pkgs,
   inputs,
+  config,
   ...
 }:
 let
@@ -9,6 +10,7 @@ in
 {
   imports = [
     ./nix_modules/postgres.nix
+    ./nix_modules/scripts/db.nix
   ];
 
   config = {
@@ -17,6 +19,7 @@ in
     packages = with pkgs; [
       git
       inotify-tools
+      dbmate
     ];
 
     env = {
@@ -24,9 +27,19 @@ in
       AUTH_ENDPOINT = "keycloak.friikod.se/realms/auth-server/protocol/openid-connect";
     };
 
-    processes.app.exec = ''
-      gleam run
-    '';
+    services.auth-server.postgres = {
+      user = "auth_server";
+      dbName = "auth_server";
+    };
+
+    processes.app = {
+      exec = ''
+        gleam run
+      '';
+      process-compose = {
+        depends_on.postgres.condition = "process_healthy";
+      };
+    };
 
     languages.gleam = {
       enable = true;
