@@ -1,4 +1,9 @@
+import pog
 import wisp
+
+pub type Context {
+  Context(db: pog.Connection)
+}
 
 pub fn middleware(
   req: wisp.Request,
