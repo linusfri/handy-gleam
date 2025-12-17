@@ -24,7 +24,7 @@ pub fn get_user(access_token: String) {
   api_client.send_request(user_info_request)
 }
 
-pub fn get_current_user(req, ctx) {
+pub fn get_current_user(req, _) {
   use <- wisp.require_method(req, http.Get)
   let token = req |> http_request.get_header("Authorization")
 

@@ -1,5 +1,5 @@
 import auth_server/auth/auth
-import auth_server/auth/user_service
+import auth_server/services/users/user_service
 import auth_server/sql
 import auth_server/web
 import gleam/http.{Get}
@@ -31,7 +31,7 @@ fn home_page(req: Request, ctx: web.Context) -> Response {
 
       wisp.json_response(json.to_string(products_json), 200)
     }
-    Error(err) -> {
+    Error(_) -> {
       wisp.json_response("{\"error\": \"Database error\"}", 500)
     }
   }
