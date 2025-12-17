@@ -26,7 +26,7 @@ pub fn get_user(access_token: String) {
 
 pub fn get_current_user(req, _) {
   use <- wisp.require_method(req, http.Get)
-  let token = req |> http_request.get_header("Authorization")
+  let token = http_request.get_header(req, "Authorization")
 
   let token = case token {
     Ok(auth_header) -> {

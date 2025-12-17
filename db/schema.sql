@@ -1,4 +1,4 @@
-\restrict HiFSpOcFkyV4P7D4cYpAdIyLTc0yPvdAGSlM9z412kkYCM3GZOAPa1gSJca7vnf
+\restrict 0taDThScfdfaR1XjKjkXT7npGUNnKU31BMQKPmhBqbqWmbp6LcZ0xw4TWpmi4nJ
 
 -- Dumped from database version 17.6
 -- Dumped by pg_dump version 17.6
@@ -88,7 +88,7 @@ ALTER TABLE ONLY public.schema_migrations
 -- PostgreSQL database dump complete
 --
 
-\unrestrict HiFSpOcFkyV4P7D4cYpAdIyLTc0yPvdAGSlM9z412kkYCM3GZOAPa1gSJca7vnf
+\unrestrict 0taDThScfdfaR1XjKjkXT7npGUNnKU31BMQKPmhBqbqWmbp6LcZ0xw4TWpmi4nJ
 
 
 --
