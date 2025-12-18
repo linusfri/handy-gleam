@@ -5,7 +5,6 @@
 ////
 
 import gleam/dynamic/decode
-import gleam/json
 import gleam/option.{type Option}
 import gleam/time/timestamp.{type Timestamp}
 import pog

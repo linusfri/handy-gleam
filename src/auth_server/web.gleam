@@ -1,3 +1,5 @@
+import auth_server/auth/types
+import auth_server/services/user_service
 import pog
 import wisp
 
@@ -15,4 +17,14 @@ pub fn middleware(
   use req <- wisp.handle_head(req)
 
   handle_request(req)
+}
+
+pub fn authenticated_middleware(
+  req: wisp.Request,
+  handle_request: fn(wisp.Request, types.User) -> wisp.Response,
+) -> wisp.Response {
+  case user_service.get_session_user(req) {
+    Ok(user) -> handle_request(req, user)
+    Error(wisp_error) -> wisp_error
+  }
 }

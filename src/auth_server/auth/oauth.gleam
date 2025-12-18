@@ -1,5 +1,6 @@
 import auth_server/auth/auth_utils
 import auth_server/auth/types.{type LoginFormData, LoginResponse}
+import auth_server/lib/user/decoders.{user_decoder}
 import auth_server/services/user_service
 import auth_server/utils/api_client
 import gleam/http/request as http_request
@@ -40,9 +41,11 @@ pub fn build_login_response(form_data: LoginFormData) {
   }
 
   use token <- result.try(token_response)
-  use user_response <- result.try(user_service.get_user(token.access_token))
+  use user_response <- result.try(user_service.get_user_request(
+    token.access_token,
+  ))
 
-  case auth_utils.user_decoder(user_response) {
+  case user_decoder(user_response) {
     Ok(user) -> {
       let login_response = LoginResponse(token: token, user: user)
       let json_body = auth_utils.login_response_encoder(login_response)
