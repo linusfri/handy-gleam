@@ -1,5 +1,5 @@
 import auth_server/lib/user/types.{type User}
-import auth_server/services/user_service
+import auth_server/lib/user/user
 import pog
 import wisp
 
@@ -23,7 +23,7 @@ pub fn authenticated_middleware(
   req: wisp.Request,
   handle_request: fn(wisp.Request, User) -> wisp.Response,
 ) -> wisp.Response {
-  case user_service.get_session_user(req) {
+  case user.get_session_user(req) {
     Ok(user) -> handle_request(req, user)
     Error(wisp_error) -> wisp_error
   }

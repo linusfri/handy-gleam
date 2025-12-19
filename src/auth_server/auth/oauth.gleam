@@ -42,7 +42,7 @@ pub fn build_login_response(form_data: LoginFormData) {
   }
 
   use token <- result.try(token_response)
-  use user_response <- result.try(user_service.get_user_request(
+  use user_response <- result.try(user_service.request_get_user(
     token.access_token,
   ))
 
