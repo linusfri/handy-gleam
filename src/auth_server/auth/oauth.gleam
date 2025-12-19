@@ -1,6 +1,7 @@
 import auth_server/auth/auth_utils
+import auth_server/auth/transform as auth_transform
 import auth_server/auth/types.{type LoginFormData, LoginResponse}
-import auth_server/lib/user/decoders.{user_decoder}
+import auth_server/lib/user/transform as user_transform
 import auth_server/services/user_service
 import auth_server/utils/api_client
 import gleam/http/request as http_request
@@ -33,7 +34,7 @@ pub fn build_login_response(form_data: LoginFormData) {
 
   let token_response = case api_client.send_request(login_request) {
     Ok(res) ->
-      case auth_utils.token_response_decoder(res) {
+      case auth_transform.token_response_decoder(res) {
         Ok(token_response) -> Ok(token_response)
         Error(_) -> Error(wisp.json_response("Could not decode token", 500))
       }
@@ -45,10 +46,10 @@ pub fn build_login_response(form_data: LoginFormData) {
     token.access_token,
   ))
 
-  case user_decoder(user_response) {
+  case user_transform.user_decoder(user_response) {
     Ok(user) -> {
       let login_response = LoginResponse(token: token, user: user)
-      let json_body = auth_utils.login_response_encoder(login_response)
+      let json_body = auth_transform.login_response_encoder(login_response)
       Ok(wisp.json_response(json.to_string(json_body), 200))
     }
     Error(_) -> Error(wisp.json_response("Failed to decode user info", 500))

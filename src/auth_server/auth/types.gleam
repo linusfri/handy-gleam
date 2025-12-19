@@ -1,3 +1,5 @@
+import auth_server/lib/user/types.{type User}
+
 pub type LoginFormData {
   LoginFormData(
     client_id: String,
@@ -24,16 +26,4 @@ pub type TokenResponse {
 
 pub type LoginResponse {
   LoginResponse(token: TokenResponse, user: User)
-}
-
-pub type User {
-  User(
-    sub: String,
-    email_verified: Bool,
-    name: String,
-    preferred_username: String,
-    given_name: String,
-    family_name: String,
-    email: String,
-  )
 }
