@@ -1,7 +1,7 @@
 import auth_server/config.{config}
 import auth_server/database/database
+import auth_server/lib/utils/hot_reload.{enable_hot_reload}
 import auth_server/router
-import auth_server/utils/hot_reload.{enable_hot_reload}
 import auth_server/web
 import gleam/erlang/process
 import mist

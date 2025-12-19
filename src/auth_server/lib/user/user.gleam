@@ -1,7 +1,7 @@
 import auth_server/lib/auth/auth_utils
+import auth_server/lib/services/user_service
 import auth_server/lib/user/transform.{user_decoder, user_encoder}
 import auth_server/lib/user/types.{type User}
-import auth_server/services/user_service
 import gleam/json
 import wisp
 

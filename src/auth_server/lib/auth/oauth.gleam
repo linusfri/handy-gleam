@@ -1,9 +1,9 @@
 import auth_server/lib/auth/auth_utils
 import auth_server/lib/auth/transform as auth_transform
 import auth_server/lib/auth/types.{type LoginFormData, LoginResponse}
+import auth_server/lib/services/user_service
 import auth_server/lib/user/transform as user_transform
-import auth_server/services/user_service
-import auth_server/utils/api_client
+import auth_server/lib/utils/api_client
 import gleam/http/request as http_request
 import gleam/json
 import gleam/result

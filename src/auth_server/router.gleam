@@ -1,6 +1,6 @@
 import auth_server/lib/auth/auth
+import auth_server/lib/services/product_service
 import auth_server/lib/user/user
-import auth_server/services/product_service
 import auth_server/web
 import gleam/http.{Get, Post}
 import wisp.{type Request, type Response}
