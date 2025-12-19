@@ -10,7 +10,7 @@ pub fn login(req: Request) {
   case auth_transform.login_form_decoder(json_body) {
     Ok(form_data) ->
       case oauth.build_login_response(form_data) {
-        Ok(response) -> response
+        Ok(login_response) -> login_response
         Error(error_response) -> error_response
       }
     Error(_) -> wisp.json_response("Invalid JSON body", 400)
