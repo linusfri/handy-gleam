@@ -27,3 +27,7 @@ pub type TokenResponse {
 pub type LoginResponse {
   LoginResponse(token: TokenResponse, user: User)
 }
+
+pub type RefreshTokenRequest {
+  RefreshTokenRequest(client_id: String, refresh_token: String)
+}

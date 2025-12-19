@@ -11,6 +11,7 @@ pub fn handle_request(req: Request, ctx: web.Context) -> Response {
   case wisp.path_segments(req), req.method {
     [], Get -> home_page(req, ctx)
     ["auth", "login"], Post -> auth.login(req)
+    ["auth", "refresh-token"], Post -> auth.refresh_token(req)
     ["auth", "user"], method -> {
       use _, user <- web.authenticated_middleware(req)
       case method {

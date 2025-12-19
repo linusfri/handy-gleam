@@ -16,3 +16,17 @@ pub fn login(req: Request) {
     Error(_) -> wisp.json_response("Invalid JSON body", 400)
   }
 }
+
+pub fn refresh_token(req: Request) {
+  use <- wisp.require_method(req, Post)
+  use json_body <- wisp.require_json(req)
+
+  case auth_transform.refresh_token_request_decoder(json_body) {
+    Ok(token_request) ->
+      case oauth.build_refresh_response(token_request) {
+        Ok(token) -> token
+        Error(error_response) -> error_response
+      }
+    Error(_) -> wisp.json_response("Invalid refresh token", 400)
+  }
+}

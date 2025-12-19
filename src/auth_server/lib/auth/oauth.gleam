@@ -1,6 +1,8 @@
 import auth_server/lib/auth/auth_utils
 import auth_server/lib/auth/transform as auth_transform
-import auth_server/lib/auth/types.{type LoginFormData, LoginResponse}
+import auth_server/lib/auth/types.{
+  type LoginFormData, type RefreshTokenRequest, LoginResponse,
+}
 import auth_server/lib/services/user_service
 import auth_server/lib/user/transform as user_transform
 import auth_server/lib/utils/api_client
@@ -8,7 +10,9 @@ import gleam/http/request as http_request
 import gleam/json
 import gleam/result
 import glow_auth.{type Client, Client}
-import glow_auth/token_request.{DefaultScope, RequestBody, client_credentials}
+import glow_auth/token_request.{
+  DefaultScope, RequestBody, client_credentials, refresh as refresh_credentials,
+}
 import glow_auth/uri/uri_builder.{RelativePath}
 import wisp
 
@@ -18,7 +22,41 @@ fn create_client(client_id: String) -> Client(body) {
   Client(id: client_id, secret: "None", site: site)
 }
 
-pub fn build_login_request(
+fn build_refresh_request(refresh_token_request: RefreshTokenRequest) {
+  let client = create_client(refresh_token_request.client_id)
+  let token_endpoint = RelativePath("token")
+
+  refresh_credentials(
+    client,
+    token_endpoint,
+    refresh_token_request.refresh_token,
+  )
+}
+
+fn request_token(token_request: http_request.Request(String)) {
+  case api_client.send_request(token_request) {
+    Ok(res) ->
+      case auth_transform.token_response_decoder(res) {
+        Ok(token_response) -> Ok(token_response)
+        Error(_) ->
+          Error(wisp.json_response("Could not decode refresh token", 500))
+      }
+    Error(wisp_error) -> Error(wisp_error)
+  }
+}
+
+pub fn build_refresh_response(refresh_token_request: RefreshTokenRequest) {
+  let refresh_token_request = build_refresh_request(refresh_token_request)
+
+  let token_response = request_token(refresh_token_request)
+
+  use token <- result.try(token_response)
+
+  let json_token = auth_transform.token_response_encoder(token)
+  Ok(wisp.json_response(json.to_string(json_token), 200))
+}
+
+fn build_login_request(
   login_form_data: LoginFormData,
 ) -> http_request.Request(String) {
   let client = create_client(login_form_data.client_id)
@@ -32,14 +70,7 @@ pub fn build_login_request(
 pub fn build_login_response(form_data: LoginFormData) {
   let login_request = build_login_request(form_data)
 
-  let token_response = case api_client.send_request(login_request) {
-    Ok(res) ->
-      case auth_transform.token_response_decoder(res) {
-        Ok(token_response) -> Ok(token_response)
-        Error(_) -> Error(wisp.json_response("Could not decode token", 500))
-      }
-    Error(wisp_error) -> Error(wisp_error)
-  }
+  let token_response = request_token(login_request)
 
   use token <- result.try(token_response)
   use user_response <- result.try(user_service.request_get_user(

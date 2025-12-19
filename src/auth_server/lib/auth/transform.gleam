@@ -61,6 +61,17 @@ pub fn token_response_decoder(json_data: Dynamic) {
   decode.run(json_data, token_decoder)
 }
 
+pub fn refresh_token_request_decoder(json_data: Dynamic) {
+  let refresh_token_decoder = {
+    use refresh_token <- decode.field("refresh_token", decode.string)
+    let client_id = "auth-server"
+
+    decode.success(types.RefreshTokenRequest(refresh_token:, client_id:))
+  }
+
+  decode.run(json_data, refresh_token_decoder)
+}
+
 pub fn token_response_encoder(token: TokenResponse) -> json.Json {
   json.object([
     #("access_token", json.string(token.access_token)),
