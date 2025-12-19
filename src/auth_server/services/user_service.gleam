@@ -1,5 +1,5 @@
-import auth_server/auth/auth_utils
 import auth_server/config.{config}
+import auth_server/lib/auth/auth_utils
 import auth_server/utils/api_client
 import gleam/http
 import gleam/http/request as http_request

@@ -1,5 +1,5 @@
-import auth_server/auth/oauth
-import auth_server/auth/transform as auth_transform
+import auth_server/lib/auth/oauth
+import auth_server/lib/auth/transform as auth_transform
 import gleam/http.{Post}
 import wisp.{type Request}
 

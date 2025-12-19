@@ -1,4 +1,4 @@
-import auth_server/auth/auth
+import auth_server/lib/auth/auth
 import auth_server/lib/user/user
 import auth_server/services/product_service
 import auth_server/web

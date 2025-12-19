@@ -1,6 +1,6 @@
-import auth_server/auth/auth_utils
-import auth_server/auth/transform as auth_transform
-import auth_server/auth/types.{type LoginFormData, LoginResponse}
+import auth_server/lib/auth/auth_utils
+import auth_server/lib/auth/transform as auth_transform
+import auth_server/lib/auth/types.{type LoginFormData, LoginResponse}
 import auth_server/lib/user/transform as user_transform
 import auth_server/services/user_service
 import auth_server/utils/api_client

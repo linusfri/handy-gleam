@@ -1,4 +1,4 @@
-import auth_server/auth/types.{
+import auth_server/lib/auth/types.{
   type LoginResponse, type TokenResponse, LoginFormData, TokenResponse,
 }
 import auth_server/lib/user/transform as user_transform
