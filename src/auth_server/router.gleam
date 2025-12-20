@@ -20,6 +20,12 @@ pub fn handle_request(req: Request, ctx: web.Context) -> Response {
         _ -> wisp.method_not_allowed(allowed: [Get, Post])
       }
     }
+    ["products"], method ->
+      case method {
+        Get -> wisp.json_response("Product", 200)
+        Post -> wisp.json_response("Create product", 201)
+        _ -> wisp.not_found()
+      }
     _, _ -> wisp.json_response("Not found", 404)
   }
 }
