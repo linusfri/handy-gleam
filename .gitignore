@@ -15,3 +15,5 @@ devenv.local.nix
 erl_crash.dump
 result
 
+db/schema.sql
+
