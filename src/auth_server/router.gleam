@@ -23,7 +23,7 @@ pub fn handle_request(req: Request, ctx: web.Context) -> Response {
     ["products"], method ->
       case method {
         Get -> wisp.json_response("Product", 200)
-        Post -> wisp.json_response("Create product", 201)
+        Post -> product_service.create_product(req, ctx)
         _ -> wisp.not_found()
       }
     _, _ -> wisp.json_response("Not found", 404)

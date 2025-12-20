@@ -5,10 +5,35 @@
 ////
 
 import gleam/dynamic/decode
-import gleam/json
 import gleam/option.{type Option}
 import gleam/time/timestamp.{type Timestamp}
 import pog
+
+/// Runs the `create_product` query
+/// defined in `./src/auth_server/sql/create_product.sql`.
+///
+/// > 🐿️ This function was generated automatically using v4.6.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn create_product(
+  db: pog.Connection,
+  arg_1: String,
+  arg_2: String,
+  arg_3: ProductStatus,
+  arg_4: Float,
+) -> Result(pog.Returned(Nil), pog.QueryError) {
+  let decoder = decode.map(decode.dynamic, fn(_) { Nil })
+
+  "insert into products (name, description, status, price, created_at, updated_at) values
+    ($1, $2, $3, $4, now(), now());"
+  |> pog.query
+  |> pog.parameter(pog.text(arg_1))
+  |> pog.parameter(pog.text(arg_2))
+  |> pog.parameter(product_status_encoder(arg_3))
+  |> pog.parameter(pog.float(arg_4))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
 
 /// A row you get from running the `select_products` query
 /// defined in `./src/auth_server/sql/select_products.sql`.
@@ -81,4 +106,12 @@ fn product_status_decoder() -> decode.Decoder(ProductStatus) {
     "sold" -> decode.success(Sold)
     _ -> decode.failure(Available, "ProductStatus")
   }
+}
+
+fn product_status_encoder(product_status) -> pog.Value {
+  case product_status {
+    Available -> "available"
+    Sold -> "sold"
+  }
+  |> pog.text
 }
