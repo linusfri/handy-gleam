@@ -9,6 +9,7 @@ pub fn user_decoder(json_data: Dynamic) {
     use email_verified <- decode.field("email_verified", decode.bool)
     use name <- decode.field("name", decode.string)
     use preferred_username <- decode.field("preferred_username", decode.string)
+    use groups <- decode.field("groups", decode.list(decode.string))
     use given_name <- decode.field("given_name", decode.string)
     use family_name <- decode.field("family_name", decode.string)
     use email <- decode.field("email", decode.string)
@@ -18,6 +19,7 @@ pub fn user_decoder(json_data: Dynamic) {
       email_verified: email_verified,
       name: name,
       preferred_username: preferred_username,
+      groups: groups,
       given_name: given_name,
       family_name: family_name,
       email: email,

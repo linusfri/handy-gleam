@@ -24,7 +24,11 @@ pub fn handle_request(req: Request, ctx: web.Context) -> Response {
       use req, user <- web.authenticated_middleware(req)
 
       case method {
-        Get -> wisp.json_response("Product", 200)
+        Get ->
+          case product_service.get_products(ctx, user) {
+            Ok(products) -> wisp.json_response(products, 200)
+            Error(error) -> wisp.json_response(error, 500)
+          }
         Post -> product_service.create_product(req, ctx, user)
         _ -> wisp.not_found()
       }
@@ -35,9 +39,5 @@ pub fn handle_request(req: Request, ctx: web.Context) -> Response {
 
 fn home_page(req: Request, ctx: web.Context) -> Response {
   use <- wisp.require_method(req, Get)
-
-  case product_service.get_products(ctx) {
-    Ok(products) -> wisp.json_response(products, 200)
-    Error(error) -> wisp.json_response(error, 500)
-  }
+  wisp.json_response("Ping", 200)
 }

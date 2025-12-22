@@ -9,6 +9,16 @@ import gleam/option.{type Option}
 import gleam/time/timestamp.{type Timestamp}
 import pog
 
+/// A row you get from running the `create_product` query
+/// defined in `./src/auth_server/sql/create_product.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.6.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type CreateProductRow {
+  CreateProductRow(id: Int)
+}
+
 /// Runs the `create_product` query
 /// defined in `./src/auth_server/sql/create_product.sql`.
 ///
@@ -21,16 +31,65 @@ pub fn create_product(
   arg_2: String,
   arg_3: ProductStatus,
   arg_4: Float,
-) -> Result(pog.Returned(Nil), pog.QueryError) {
-  let decoder = decode.map(decode.dynamic, fn(_) { Nil })
+) -> Result(pog.Returned(CreateProductRow), pog.QueryError) {
+  let decoder = {
+    use id <- decode.field(0, decode.int)
+    decode.success(CreateProductRow(id:))
+  }
 
   "insert into products (name, description, status, price, created_at, updated_at) values
-    ($1, $2, $3, $4, now(), now());"
+    ($1, $2, $3, $4, now(), now()) returning id;"
   |> pog.query
   |> pog.parameter(pog.text(arg_1))
   |> pog.parameter(pog.text(arg_2))
   |> pog.parameter(product_status_encoder(arg_3))
   |> pog.parameter(pog.float(arg_4))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
+/// Runs the `create_product_user_group` query
+/// defined in `./src/auth_server/sql/create_product_user_group.sql`.
+///
+/// > 🐿️ This function was generated automatically using v4.6.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn create_product_user_group(
+  db: pog.Connection,
+  arg_1: Int,
+  arg_2: String,
+) -> Result(pog.Returned(Nil), pog.QueryError) {
+  let decoder = decode.map(decode.dynamic, fn(_) { Nil })
+
+  "insert into product_user_group (product_id, user_group_id, created_at)
+values ($1, $2, now());"
+  |> pog.query
+  |> pog.parameter(pog.int(arg_1))
+  |> pog.parameter(pog.text(arg_2))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
+/// Runs the `create_products_user_groups` query
+/// defined in `./src/auth_server/sql/create_products_user_groups.sql`.
+///
+/// > 🐿️ This function was generated automatically using v4.6.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn create_products_user_groups(
+  db: pog.Connection,
+  arg_1: List(Int),
+  arg_2: List(String),
+) -> Result(pog.Returned(Nil), pog.QueryError) {
+  let decoder = decode.map(decode.dynamic, fn(_) { Nil })
+
+  "insert into product_user_group (product_id, user_group_id, created_at)
+select p.product_id, g.user_group_id, now()
+from unnest($1::int[]) as p(product_id)
+cross join unnest($2::text[]) as g(user_group_id);"
+  |> pog.query
+  |> pog.parameter(pog.array(fn(value) { pog.int(value) }, arg_1))
+  |> pog.parameter(pog.array(fn(value) { pog.text(value) }, arg_2))
   |> pog.returning(decoder)
   |> pog.execute(db)
 }
@@ -61,6 +120,7 @@ pub type SelectProductsRow {
 ///
 pub fn select_products(
   db: pog.Connection,
+  arg_1: List(String),
 ) -> Result(pog.Returned(SelectProductsRow), pog.QueryError) {
   let decoder = {
     use id <- decode.field(0, decode.int)
@@ -81,8 +141,12 @@ pub fn select_products(
     ))
   }
 
-  "select * from products;"
+  "select distinct p.* 
+from products p
+inner join product_user_group pug on p.id = pug.product_id
+where pug.user_group_id = any($1);"
   |> pog.query
+  |> pog.parameter(pog.array(fn(value) { pog.text(value) }, arg_1))
   |> pog.returning(decoder)
   |> pog.execute(db)
 }

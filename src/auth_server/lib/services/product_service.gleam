@@ -7,10 +7,11 @@ import gleam/http/request
 import gleam/json
 import gleam/list
 import gleam/option
+import gleam/string
 import wisp
 
-pub fn get_products(ctx: web.Context) {
-  case sql.select_products(ctx.db) {
+pub fn get_products(ctx: web.Context, user: User) {
+  case sql.select_products(ctx.db, user.groups) {
     Ok(products) -> {
       let products_json =
         products.rows
@@ -33,7 +34,9 @@ pub fn create_product(
   use <- wisp.require_method(req, http.Post)
   use json_body <- wisp.require_json(req)
 
-  case product.create_product_row_decoder(json_body) {
+  let created_product_id_rows = case
+    product.create_product_row_decoder(json_body)
+  {
     Ok(product) ->
       case
         sql.create_product(
@@ -44,12 +47,22 @@ pub fn create_product(
           product.price,
         )
       {
-        Ok(_) -> wisp.json_response("Created", 201)
+        Ok(create_product_response) -> Ok(create_product_response.rows)
+        Error(_) -> Error(wisp.json_response("Could not create product", 500))
+      }
+    Error(_) -> Error(wisp.json_response("Could not decode product", 400))
+  }
+
+  case created_product_id_rows {
+    Ok(id_rows) -> {
+      let product_ids = list.map(id_rows, fn(row) { row.id })
+      case sql.create_products_user_groups(ctx.db, product_ids, user.groups) {
+        Ok(_) -> wisp.json_response("Product created", 201)
         Error(err) -> {
-          echo err
-          wisp.json_response("Could not create product", 500)
+          wisp.json_response(string.inspect(err), 500)
         }
       }
-    Error(_) -> wisp.json_response("Could not decode product", 400)
+    }
+    Error(wisp_error) -> wisp_error
   }
 }

@@ -8,6 +8,15 @@ import gleam/option.{type Option}
 import gleam/time/timestamp
 import pog
 
+pub type CreateProductRow {
+  CreateProductRow(
+    name: String,
+    description: Option(String),
+    status: ProductStatus,
+    price: Float,
+  )
+}
+
 fn product_status_decoder() -> decode.Decoder(ProductStatus) {
   use product_status <- decode.then(decode.string)
   case product_status {
@@ -23,15 +32,6 @@ fn product_status_encoder(product_status) -> pog.Value {
     Sold -> "sold"
   }
   |> pog.text
-}
-
-pub type CreateProductRow {
-  CreateProductRow(
-    name: String,
-    description: Option(String),
-    status: ProductStatus,
-    price: Float,
-  )
 }
 
 pub fn create_product_row_decoder(create_product_data: Dynamic) {
