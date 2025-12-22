@@ -4,27 +4,44 @@
 }:
 let
   dbCfg = config.services.auth-server.postgres;
+  inherit (import ./constants.nix { inherit config; }) dbPermissionsAndOwnership;
 in
 {
-  scripts.set-unix-db-url.exec = ''
-    echo 'export DATABASE_URL="postgres://${dbCfg.user}@/${dbCfg.dbName}?host=$PGHOST&sslmode=disable"'
-  '';
+  config = {
+    scripts.set-unix-db-url.exec = ''
+      echo 'export DATABASE_URL="postgres://${dbCfg.user}@/${dbCfg.dbName}?host=$PGHOST&sslmode=disable"'
+    '';
 
-  scripts.set-squirrel-db-url.exec = ''
-    echo 'export DATABASE_URL="postgres://postgres@127.0.0.1:5432/${dbCfg.dbName}"'
-  '';
+    scripts.set-squirrel-db-url.exec = ''
+      echo 'export DATABASE_URL="postgres://postgres@127.0.0.1:5432/${dbCfg.dbName}"'
+    '';
 
-  scripts.dbmate-cli.exec = ''
-    source <(set-unix-db-url)
+    scripts.dbmate-cli.exec = ''
+      source <(set-unix-db-url)
 
-    dbmate "$@"
-  '';
+      dbmate "$@"
+    '';
 
-  scripts.gleam-db-generate.exec = ''
-    source <(set-squirrel-db-url)
+    scripts.migrate-fresh.exec = ''
+      echo "Dropping database..."
+      dbmate-cli drop
 
-    echo $DATABASE_URL
+      echo "Creating database and setting up permissions..."
+      psql -U postgres << EOF
+      CREATE DATABASE ${dbCfg.dbName};
+      ${dbPermissionsAndOwnership}
+      EOF
 
-    gleam run -m squirrel
-  '';
+      echo "Running migrations..."
+      dbmate-cli up
+    '';
+
+    scripts.gleam-db-generate.exec = ''
+      source <(set-squirrel-db-url)
+
+      echo $DATABASE_URL
+
+      gleam run -m squirrel
+    '';
+  };
 }

@@ -1,4 +1,5 @@
 import auth_server/lib/product/product.{select_products_row_to_json}
+import auth_server/lib/user/types.{type User}
 import auth_server/sql
 import auth_server/web
 import gleam/http
@@ -24,11 +25,15 @@ pub fn get_products(ctx: web.Context) {
   }
 }
 
-pub fn create_product(req: request.Request(wisp.Connection), ctx: web.Context) {
+pub fn create_product(
+  req: request.Request(wisp.Connection),
+  ctx: web.Context,
+  user: User,
+) {
   use <- wisp.require_method(req, http.Post)
   use json_body <- wisp.require_json(req)
 
-  case product.product_decoder(json_body) {
+  case product.create_product_row_decoder(json_body) {
     Ok(product) ->
       case
         sql.create_product(
@@ -40,7 +45,10 @@ pub fn create_product(req: request.Request(wisp.Connection), ctx: web.Context) {
         )
       {
         Ok(_) -> wisp.json_response("Created", 201)
-        Error(_) -> wisp.json_response("Could not create product", 500)
+        Error(err) -> {
+          echo err
+          wisp.json_response("Could not create product", 500)
+        }
       }
     Error(_) -> wisp.json_response("Could not decode product", 400)
   }

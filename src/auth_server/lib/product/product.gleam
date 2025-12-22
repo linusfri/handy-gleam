@@ -4,7 +4,7 @@ import auth_server/sql.{
 import gleam/dynamic.{type Dynamic}
 import gleam/dynamic/decode
 import gleam/json
-import gleam/option
+import gleam/option.{type Option}
 import gleam/time/timestamp
 import pog
 
@@ -25,7 +25,31 @@ fn product_status_encoder(product_status) -> pog.Value {
   |> pog.text
 }
 
-pub fn product_decoder(product_data: Dynamic) {
+pub type CreateProductRow {
+  CreateProductRow(
+    name: String,
+    description: Option(String),
+    status: ProductStatus,
+    price: Float,
+  )
+}
+
+pub fn create_product_row_decoder(create_product_data: Dynamic) {
+  let products_row_decoder = {
+    use name <- decode.field("name", decode.string)
+    use description <- decode.field(
+      "description",
+      decode.optional(decode.string),
+    )
+    use status <- decode.field("status", product_status_decoder())
+    use price <- decode.field("price", decode.float)
+    decode.success(CreateProductRow(name:, description:, status:, price:))
+  }
+
+  decode.run(create_product_data, products_row_decoder)
+}
+
+pub fn select_product_row_decoder(select_product_data: Dynamic) {
   let products_row_decoder = {
     use id <- decode.field("id", decode.int)
     use name <- decode.field("name", decode.string)
@@ -54,7 +78,7 @@ pub fn product_decoder(product_data: Dynamic) {
     ))
   }
 
-  decode.run(product_data, products_row_decoder)
+  decode.run(select_product_data, products_row_decoder)
 }
 
 pub fn select_products_row_to_json(

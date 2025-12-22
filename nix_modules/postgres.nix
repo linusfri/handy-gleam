@@ -5,6 +5,7 @@
 }:
 let
   cfg = config.services.auth-server.postgres;
+  inherit (import ./scripts/constants.nix { inherit config; }) dbPermissionsAndOwnership;
 in
 {
   options.services.auth-server.postgres = {
@@ -31,11 +32,9 @@ in
       listen_addresses = "*";
       initialScript = ''
         CREATE ROLE postgres WITH LOGIN SUPERUSER;
-
         CREATE ROLE ${cfg.user} WITH LOGIN;
-        GRANT ALL PRIVILEGES ON DATABASE ${cfg.dbName} TO ${cfg.user};
-        \c ${cfg.dbName}
-        GRANT ALL ON SCHEMA public TO ${cfg.user};
+
+        ${dbPermissionsAndOwnership}
       '';
     };
   };
