@@ -34,7 +34,7 @@ fn product_status_encoder(product_status) -> pog.Value {
   |> pog.text
 }
 
-pub fn create_product_row_decoder(create_product_data: Dynamic) {
+pub fn create_product_row_decoder(product_data_create: Dynamic) {
   let products_row_decoder = {
     use name <- decode.field("name", decode.string)
     use description <- decode.field(
@@ -46,10 +46,10 @@ pub fn create_product_row_decoder(create_product_data: Dynamic) {
     decode.success(CreateProductRow(name:, description:, status:, price:))
   }
 
-  decode.run(create_product_data, products_row_decoder)
+  decode.run(product_data_create, products_row_decoder)
 }
 
-pub fn select_product_row_decoder(select_product_data: Dynamic) {
+pub fn select_product_row_decoder(product_data_select: Dynamic) {
   let products_row_decoder = {
     use id <- decode.field("id", decode.int)
     use name <- decode.field("name", decode.string)
@@ -78,7 +78,7 @@ pub fn select_product_row_decoder(select_product_data: Dynamic) {
     ))
   }
 
-  decode.run(select_product_data, products_row_decoder)
+  decode.run(product_data_select, products_row_decoder)
 }
 
 pub fn select_products_row_to_json(

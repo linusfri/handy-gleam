@@ -18,11 +18,9 @@ pub fn get_products(ctx: web.Context, user: User) {
         |> list.map(select_products_row_to_json)
         |> json.array(of: fn(x) { x })
 
-      Ok(json.to_string(products_json))
+      wisp.json_response(json.to_string(products_json), 200)
     }
-    Error(_) -> {
-      Error("{\"error\": \"Could not get products\"}")
-    }
+    Error(error) -> wisp.json_response(string.inspect(error), 500)
   }
 }
 
