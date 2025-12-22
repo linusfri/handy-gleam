@@ -11,7 +11,7 @@ pub fn get_config() -> Config {
 
   list.each(envs, fn(env) {
     case envoy.get(env) {
-      Ok(_) -> io.println(env <> " is ok.")
+      Ok(_) -> Nil
       Error(_) -> {
         io.println(env <> " is not set. The program will panic.")
         panic as "Set all required envs to start server."
