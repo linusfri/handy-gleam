@@ -1,18 +1,19 @@
 import envoy
 import gleam/io
 import gleam/list
+import wisp
 
 pub type Config {
   Config(
     secret_key: String,
     auth_endpoint: String,
     pghost: String,
-    assets_dir: String,
+    static_directory: String,
   )
 }
 
 pub fn get_config() -> Config {
-  let envs = ["SECRET_KEY", "AUTH_ENDPOINT", "PGHOST", "ASSETS_DIR"]
+  let envs = ["SECRET_KEY", "AUTH_ENDPOINT", "PGHOST", "STATIC_DIRECTORY"]
 
   list.each(envs, fn(env) {
     case envoy.get(env) {
@@ -27,8 +28,13 @@ pub fn get_config() -> Config {
   let assert Ok(secret_key) = envoy.get("SECRET_KEY")
   let assert Ok(auth_endpoint) = envoy.get("AUTH_ENDPOINT")
   let assert Ok(pghost) = envoy.get("PGHOST")
-  let assert Ok(assets_dir) = envoy.get("ASSETS_DIR")
-  Config(secret_key, auth_endpoint, pghost, assets_dir)
+  let assert Ok(static_directory) = envoy.get("STATIC_DIRECTORY")
+  Config(secret_key, auth_endpoint, pghost, static_directory)
+}
+
+pub fn static_directory() -> String {
+  let assert Ok(priv_directory) = wisp.priv_directory("assets")
+  priv_directory <> "/static"
 }
 
 pub const config = get_config

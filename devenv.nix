@@ -24,7 +24,7 @@ in
     env = {
       SECRET_KEY = "supersecret";
       AUTH_ENDPOINT = "keycloak.friikod.se/realms/auth-server/protocol/openid-connect";
-      ASSETS_DIR = "./src/auth_server/assets";
+      STATIC_DIRECTORY = "static";
     };
 
     services.auth-server.postgres = {

@@ -137,7 +137,7 @@ pub fn select_products_row_to_json(
 /// Creates an image if base64 string is provided
 pub fn create_product_image(product: CreateProductRow) {
   let product_images_path =
-    config().assets_dir <> "/" <> "images" <> "/" <> "products"
+    config().static_directory <> "/" <> "images" <> "/" <> "products"
 
   case product.image {
     option.Some(base64_image) if base64_image != "" -> {
