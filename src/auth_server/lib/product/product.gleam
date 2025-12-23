@@ -1,3 +1,5 @@
+import auth_server/config.{config}
+import auth_server/lib/file_handlers/image_handler
 import auth_server/sql.{
   type ProductStatus, type SelectProductsRow, Available, SelectProductsRow, Sold,
 }
@@ -6,8 +8,12 @@ import gleam/dynamic/decode
 import gleam/int
 import gleam/json
 import gleam/option.{type Option}
+import gleam/result
+import gleam/string
 import gleam/time/timestamp
 import pog
+import simplifile
+import youid/uuid
 
 pub type CreateProductRow {
   CreateProductRow(
@@ -126,4 +132,28 @@ pub fn select_products_row_to_json(
       }
     }),
   ])
+}
+
+/// Creates an image if base64 string is provided
+pub fn create_product_image(product: CreateProductRow) {
+  let product_images_path =
+    config().assets_dir <> "/" <> "images" <> "/" <> "products"
+
+  case product.image {
+    option.Some(base64_image) if base64_image != "" -> {
+      {
+        // Ensure directory exists
+        let _ = simplifile.create_directory_all(product_images_path)
+        let product_name = string.replace(product.name, " ", "_")
+
+        let filename =
+          "product_" <> product_name <> "_" <> uuid.v4_string() <> ".png"
+        let upload_path = product_images_path <> "/" <> filename
+
+        image_handler.save_base64_image(base64_image, upload_path)
+        |> result.replace(upload_path)
+      }
+    }
+    _ -> Ok("")
+  }
 }

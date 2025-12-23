@@ -1,5 +1,6 @@
-import auth_server/lib/file_handlers/image_handler
-import auth_server/lib/product/product.{select_products_row_to_json}
+import auth_server/lib/product/product.{
+  create_product_image, select_products_row_to_json,
+}
 import auth_server/lib/user/types.{type User}
 import auth_server/sql
 import auth_server/web
@@ -10,9 +11,7 @@ import gleam/list
 import gleam/option
 import gleam/result
 import gleam/string
-import simplifile
 import wisp
-import youid/uuid
 
 pub fn get_products(ctx: web.Context, user: User) {
   case sql.select_products(ctx.db, user.groups) {
@@ -28,26 +27,6 @@ pub fn get_products(ctx: web.Context, user: User) {
   }
 }
 
-/// Creates an image if base64 string is provided
-fn create_product_image(product: product.CreateProductRow) {
-  case product.image {
-    option.Some(base64_image) if base64_image != "" -> {
-      {
-        // Ensure directory exists
-        let _ = simplifile.create_directory_all("uploads/products")
-
-        let filename =
-          "product_" <> product.name <> "_" <> uuid.v4_string() <> ".png"
-        let upload_path = "uploads/products/" <> filename
-
-        image_handler.save_base64_image(base64_image, upload_path)
-        |> result.replace(upload_path)
-      }
-    }
-    _ -> Ok("")
-  }
-}
-
 pub fn create_product(
   req: request.Request(wisp.Connection),
   ctx: web.Context,
@@ -56,45 +35,54 @@ pub fn create_product(
   use <- wisp.require_method(req, http.Post)
   use json_body <- wisp.require_json(req)
 
-  let created_product_id_rows = case
-    product.create_product_row_decoder(json_body)
-  {
-    Ok(product) ->
-      case
-        sql.create_product(
-          ctx.db,
-          product.name,
-          option.unwrap(product.description, ""),
-          product.status,
-          product.price,
-        )
-      {
-        Ok(create_product_response) -> {
-          let image_result = create_product_image(product)
+  // First creates the product
+  let created_product_id_rows = {
+    use product <- result.try(
+      product.create_product_row_decoder(json_body)
+      |> result.map_error(fn(errors) {
+        wisp.json_response(string.inspect(errors), 400)
+      }),
+    )
 
-          case image_result {
-            Ok(_path) -> Ok(create_product_response.rows)
-            Error(err) ->
-              Error(wisp.json_response("Image upload failed: " <> err, 500))
-          }
-        }
-        Error(_) -> Error(wisp.json_response("Could not create product", 500))
-      }
-    Error(errors) -> {
-      Error(wisp.json_response(string.inspect(errors), 400))
-    }
+    use create_product_response <- result.try(
+      sql.create_product(
+        ctx.db,
+        product.name,
+        option.unwrap(product.description, ""),
+        product.status,
+        product.price,
+      )
+      |> result.map_error(fn(_) {
+        wisp.json_response("Could not create product", 500)
+      }),
+    )
+
+    use _path <- result.try(
+      create_product_image(product)
+      |> result.map_error(fn(err) {
+        wisp.json_response("Image upload failed: " <> err, 500)
+      }),
+    )
+
+    Ok(create_product_response.rows)
   }
 
-  case created_product_id_rows {
-    Ok(rows) -> {
-      let product_ids = list.map(rows, fn(row) { row.id })
-      case sql.create_products_user_groups(ctx.db, product_ids, user.groups) {
-        Ok(_) -> wisp.json_response("Product created", 201)
-        Error(err) -> {
-          wisp.json_response(string.inspect(err), 500)
-        }
-      }
-    }
-    Error(wisp_error) -> wisp_error
+  // Then connects the created product to the groups the user is part of
+  let products_users_join_creation_result = {
+    use rows <- result.try(created_product_id_rows)
+    let product_ids = list.map(rows, fn(row) { row.id })
+    use _pog_response <- result.try(
+      sql.create_products_user_groups(ctx.db, product_ids, user.groups)
+      |> result.map_error(fn(err) {
+        wisp.json_response(string.inspect(err), 500)
+      }),
+    )
+
+    Ok(wisp.json_response("Product created", 201))
+  }
+
+  case products_users_join_creation_result {
+    Ok(response) -> response
+    Error(error_response) -> error_response
   }
 }
