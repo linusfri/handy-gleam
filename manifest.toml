@@ -71,3 +71,5 @@ wisp = { version = ">= 2.0.0 and < 3.0.0" }
 pog = { version = ">= 4.1.0 and < 5.0.0" }
 gleam_otp = { version = ">= 1.2.0 and < 2.0.0" }
 gleam_time = { version = ">= 1.6.0 and < 2.0.0" }
+simplifile = { version = ">= 2.3.1 and < 3.0.0" }
+youid = { version = ">= 1.5.1 and < 2.0.0" }

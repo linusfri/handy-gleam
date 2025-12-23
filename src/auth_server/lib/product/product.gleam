@@ -15,6 +15,7 @@ pub type CreateProductRow {
     description: Option(String),
     status: ProductStatus,
     price: Float,
+    image: Option(String),
   )
 }
 
@@ -48,7 +49,14 @@ pub fn create_product_row_decoder(product_data_create: Dynamic) {
     )
     use status <- decode.field("status", product_status_decoder())
     use price <- decode.field("price", product_price_decoder())
-    decode.success(CreateProductRow(name:, description:, status:, price:))
+    use image <- decode.field("image", decode.optional(decode.string))
+    decode.success(CreateProductRow(
+      name:,
+      description:,
+      status:,
+      price:,
+      image:,
+    ))
   }
 
   decode.run(product_data_create, products_row_decoder)

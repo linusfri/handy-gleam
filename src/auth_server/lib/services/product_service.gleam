@@ -1,3 +1,4 @@
+import auth_server/lib/file_handlers/image_handler
 import auth_server/lib/product/product.{select_products_row_to_json}
 import auth_server/lib/user/types.{type User}
 import auth_server/sql
@@ -7,8 +8,11 @@ import gleam/http/request
 import gleam/json
 import gleam/list
 import gleam/option
+import gleam/result
 import gleam/string
+import simplifile
 import wisp
+import youid/uuid
 
 pub fn get_products(ctx: web.Context, user: User) {
   case sql.select_products(ctx.db, user.groups) {
@@ -21,6 +25,26 @@ pub fn get_products(ctx: web.Context, user: User) {
       wisp.json_response(json.to_string(products_json), 200)
     }
     Error(error) -> wisp.json_response(string.inspect(error), 500)
+  }
+}
+
+/// Creates an image if base64 string is provided
+fn create_product_image(product: product.CreateProductRow) {
+  case product.image {
+    option.Some(base64_image) if base64_image != "" -> {
+      {
+        // Ensure directory exists
+        let _ = simplifile.create_directory_all("uploads/products")
+
+        let filename =
+          "product_" <> product.name <> "_" <> uuid.v4_string() <> ".png"
+        let upload_path = "uploads/products/" <> filename
+
+        image_handler.save_base64_image(base64_image, upload_path)
+        |> result.replace(upload_path)
+      }
+    }
+    _ -> Ok("")
   }
 }
 
@@ -45,7 +69,15 @@ pub fn create_product(
           product.price,
         )
       {
-        Ok(create_product_response) -> Ok(create_product_response.rows)
+        Ok(create_product_response) -> {
+          let image_result = create_product_image(product)
+
+          case image_result {
+            Ok(_path) -> Ok(create_product_response.rows)
+            Error(err) ->
+              Error(wisp.json_response("Image upload failed: " <> err, 500))
+          }
+        }
         Error(_) -> Error(wisp.json_response("Could not create product", 500))
       }
     Error(errors) -> {
@@ -54,8 +86,8 @@ pub fn create_product(
   }
 
   case created_product_id_rows {
-    Ok(id_rows) -> {
-      let product_ids = list.map(id_rows, fn(row) { row.id })
+    Ok(rows) -> {
+      let product_ids = list.map(rows, fn(row) { row.id })
       case sql.create_products_user_groups(ctx.db, product_ids, user.groups) {
         Ok(_) -> wisp.json_response("Product created", 201)
         Error(err) -> {
