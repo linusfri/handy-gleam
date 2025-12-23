@@ -1,3 +1,4 @@
+import auth_server/config.{config}
 import auth_server/lib/user/types.{type User}
 import auth_server/lib/user/user
 import pog
@@ -15,6 +16,11 @@ pub fn middleware(
   use <- wisp.log_request(req)
   use <- wisp.rescue_crashes
   use req <- wisp.handle_head(req)
+  use <- wisp.serve_static(
+    req,
+    under: "/static",
+    from: config().static_directory,
+  )
 
   handle_request(req)
 }
