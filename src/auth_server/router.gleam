@@ -27,8 +27,16 @@ pub fn handle_request(req: Request, ctx: web.Context) -> Response {
       case method {
         Get -> product_service.get_products(ctx, user)
         Post -> product_service.create_product(req, ctx, user)
-        Delete -> product_service.delete_product(req, ctx, user)
-        _ -> wisp.not_found()
+        _ -> wisp.method_not_allowed(allowed: [Get, Post])
+      }
+    }
+    ["products", product_id], method -> {
+      use req, user <- web.authenticated_middleware(req)
+
+      case method {
+        Get -> product_service.get_product(req, ctx, user, product_id)
+        Delete -> product_service.delete_product(req, ctx, user, product_id)
+        _ -> wisp.method_not_allowed(allowed: [Get, Delete])
       }
     }
     ["images"], method -> {

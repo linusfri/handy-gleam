@@ -43,16 +43,11 @@ pub fn delete_product(
   req: request.Request(wisp.Connection),
   ctx: web.Context,
   user: User,
+  product_id_str: String,
 ) -> wisp.Response {
   use <- wisp.require_method(req, http.Delete)
-  let query_parameters = wisp.get_query(req)
 
   let delete_product_result = {
-    use product_id_str <- result.try(
-      list.key_find(query_parameters, "product_id")
-      |> result.replace_error("No product id provided"),
-    )
-
     use product_id <- result.try(
       int.parse(product_id_str)
       |> result.replace_error("Invalid product id"),
@@ -63,9 +58,36 @@ pub fn delete_product(
 
   case delete_product_result {
     Ok(_) -> wisp.json_response("Product deleted successfully", 200)
-    Error("No product id provided") ->
-      wisp.json_response("No product id provided", 400)
     Error("Invalid product id") -> wisp.json_response("Invalid product id", 400)
+    Error(err) -> wisp.json_response(err, 500)
+  }
+}
+
+pub fn get_product(
+  req: request.Request(wisp.Connection),
+  ctx: web.Context,
+  user: User,
+  product_id_str: String,
+) -> wisp.Response {
+  use <- wisp.require_method(req, http.Get)
+
+  let get_product_result = {
+    use product_id <- result.try(
+      int.parse(product_id_str)
+      |> result.replace_error("Invalid product id"),
+    )
+
+    product.get_product_by_id(product_id: product_id, context: ctx, user: user)
+  }
+
+  case get_product_result {
+    Ok(product_row) -> {
+      let product_json = select_products_row_to_json(product_row)
+      wisp.json_response(json.to_string(product_json), 200)
+    }
+    Error("Invalid product id") -> wisp.json_response("Invalid product id", 400)
+    Error("Product not found or access denied") ->
+      wisp.json_response("Product not found or access denied", 404)
     Error(err) -> wisp.json_response(err, 500)
   }
 }

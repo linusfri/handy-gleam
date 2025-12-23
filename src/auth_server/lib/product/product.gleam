@@ -245,3 +245,32 @@ pub fn delete_product(
 
   Ok(Nil)
 }
+
+pub fn get_product_by_id(
+  product_id product_id: Int,
+  context ctx: web.Context,
+  user user: User,
+) -> Result(SelectProductsRow, String) {
+  use product_result <- result.try(
+    sql.select_product_by_id(ctx.db, product_id, user.groups)
+    |> result.map_error(fn(err) {
+      "Failed to get product: " <> string.inspect(err)
+    }),
+  )
+
+  // Extract the product from the first row and convert to SelectProductsRow
+  case product_result.rows {
+    [product, ..] ->
+      Ok(SelectProductsRow(
+        id: product.id,
+        name: product.name,
+        description: product.description,
+        status: product.status,
+        price: product.price,
+        images: product.images,
+        created_at: product.created_at,
+        updated_at: product.updated_at,
+      ))
+    [] -> Error("Product not found or access denied")
+  }
+}
