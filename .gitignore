@@ -16,4 +16,4 @@ erl_crash.dump
 result
 
 db/schema.sql
-src/assets/images/*
+src/auth_server/assets/images
