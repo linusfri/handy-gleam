@@ -3,6 +3,7 @@ import auth_server/sql.{
 }
 import gleam/dynamic.{type Dynamic}
 import gleam/dynamic/decode
+import gleam/int
 import gleam/json
 import gleam/option.{type Option}
 import gleam/time/timestamp
@@ -26,12 +27,16 @@ fn product_status_decoder() -> decode.Decoder(ProductStatus) {
   }
 }
 
-fn product_status_encoder(product_status) -> pog.Value {
+/// This is for allowing both ints and floats to be sent from a client
+fn product_price_decoder() -> decode.Decoder(Float) {
+  decode.one_of(decode.float, [decode.int |> decode.map(int.to_float)])
+}
+
+fn product_status_to_json(product_status: ProductStatus) -> json.Json {
   case product_status {
-    Available -> "available"
-    Sold -> "sold"
+    Available -> json.string("available")
+    Sold -> json.string("sold")
   }
-  |> pog.text
 }
 
 pub fn create_product_row_decoder(product_data_create: Dynamic) {
@@ -42,7 +47,7 @@ pub fn create_product_row_decoder(product_data_create: Dynamic) {
       decode.optional(decode.string),
     )
     use status <- decode.field("status", product_status_decoder())
-    use price <- decode.field("price", decode.float)
+    use price <- decode.field("price", product_price_decoder())
     decode.success(CreateProductRow(name:, description:, status:, price:))
   }
 
@@ -113,11 +118,4 @@ pub fn select_products_row_to_json(
       }
     }),
   ])
-}
-
-pub fn product_status_to_json(product_status: ProductStatus) -> json.Json {
-  case product_status {
-    Available -> json.string("available")
-    Sold -> json.string("sold")
-  }
 }

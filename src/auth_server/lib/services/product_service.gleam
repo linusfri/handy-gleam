@@ -31,7 +31,6 @@ pub fn create_product(
 ) {
   use <- wisp.require_method(req, http.Post)
   use json_body <- wisp.require_json(req)
-  echo json_body
 
   let created_product_id_rows = case
     product.create_product_row_decoder(json_body)
@@ -50,7 +49,6 @@ pub fn create_product(
         Error(_) -> Error(wisp.json_response("Could not create product", 500))
       }
     Error(errors) -> {
-      echo errors
       Error(wisp.json_response(string.inspect(errors), 400))
     }
   }
