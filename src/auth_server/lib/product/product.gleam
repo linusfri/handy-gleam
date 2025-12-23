@@ -1,22 +1,22 @@
-import auth_server/config.{config}
-import auth_server/lib/file_handlers/image_handler
+import auth_server/lib/file_handlers/file_handler
+import auth_server/lib/user/types.{type User}
 import auth_server/sql.{
   type ProductStatus, type SelectProductsRow, Available, SelectProductsRow, Sold,
 }
+import auth_server/web
 import gleam/dynamic.{type Dynamic}
 import gleam/dynamic/decode
 import gleam/int
 import gleam/json
+import gleam/list
 import gleam/option.{type Option}
 import gleam/result
 import gleam/string
 import gleam/time/timestamp
 import pog
-import simplifile
-import youid/uuid
 
-pub type CreateProductRow {
-  CreateProductRow(
+pub type CreateProductRequest {
+  CreateProductRequest(
     name: String,
     description: Option(String),
     status: ProductStatus,
@@ -56,7 +56,7 @@ pub fn create_product_row_decoder(product_data_create: Dynamic) {
     use status <- decode.field("status", product_status_decoder())
     use price <- decode.field("price", product_price_decoder())
     use image <- decode.field("image", decode.optional(decode.string))
-    decode.success(CreateProductRow(
+    decode.success(CreateProductRequest(
       name:,
       description:,
       status:,
@@ -78,6 +78,8 @@ pub fn select_product_row_decoder(product_data_select: Dynamic) {
     )
     use status <- decode.field("status", product_status_decoder())
     use price <- decode.field("price", decode.float)
+    use images <- decode.field("images", decode.list(decode.string))
+    echo images
     use created_at <- decode.field(
       "created_at",
       decode.optional(pog.timestamp_decoder()),
@@ -92,6 +94,7 @@ pub fn select_product_row_decoder(product_data_select: Dynamic) {
       description:,
       status:,
       price:,
+      images:,
       created_at:,
       updated_at:,
     ))
@@ -109,12 +112,19 @@ pub fn select_products_row_to_json(
     description:,
     status:,
     price:,
+    images:,
     created_at:,
     updated_at:,
   ) = select_products_row
   json.object([
     #("id", json.int(id)),
     #("name", json.string(name)),
+    #(
+      "images",
+      json.array(images, fn(filename) {
+        json.string(file_handler.file_url(filename, "images/products"))
+      }),
+    ),
     #("description", case description {
       option.None -> json.null()
       option.Some(value) -> json.string(value)
@@ -135,25 +145,103 @@ pub fn select_products_row_to_json(
 }
 
 /// Creates an image if base64 string is provided
-pub fn create_product_image(product: CreateProductRow) {
-  let product_images_path =
-    config().static_directory <> "/" <> "images" <> "/" <> "products"
+pub fn create_product_image(
+  ctx ctx: web.Context,
+  create_product_request create_product_request: CreateProductRequest,
+  product_id product_id: Int,
+) -> Result(String, String) {
+  let product_image_result =
+    file_handler.create_file(
+      filename: create_product_request.name,
+      base64_encoded_file: create_product_request.image,
+      directory: "images/products",
+    )
 
-  case product.image {
-    option.Some(base64_image) if base64_image != "" -> {
-      {
-        // Ensure directory exists
-        let _ = simplifile.create_directory_all(product_images_path)
-        let product_name = string.replace(product.name, " ", "_")
+  use product_image_name <- result.try(product_image_result)
 
-        let filename =
-          "product_" <> product_name <> "_" <> uuid.v4_string() <> ".png"
-        let upload_path = product_images_path <> "/" <> filename
+  // If no image, return empty string
+  case product_image_name {
+    "" -> Ok("")
+    _ -> {
+      use created_image_row <- result.try(
+        sql.create_image(ctx.db, product_image_name)
+        |> result.map_error(fn(err) {
+          "Failed to create image: " <> string.inspect(err)
+        }),
+      )
 
-        image_handler.save_base64_image(base64_image, upload_path)
-        |> result.replace(upload_path)
+      // Extract the image ID from the first row
+      case created_image_row.rows {
+        [first_image, ..] -> {
+          use _ <- result.try(
+            // Last argument is order
+            sql.create_product_image(ctx.db, product_id, first_image.id, 0)
+            |> result.map_error(fn(err) {
+              "Failed to link product image: " <> string.inspect(err)
+            }),
+          )
+          Ok(product_image_name)
+        }
+        [] -> Error("No image ID returned from database")
       }
     }
-    _ -> Ok("")
   }
+}
+
+pub fn create_product(
+  data data: Dynamic,
+  user user: User,
+  context ctx: web.Context,
+) -> Result(Nil, String) {
+  // First creates the product
+  use product_request <- result.try(
+    create_product_row_decoder(data)
+    |> result.map_error(fn(errors) { string.inspect(errors) }),
+  )
+
+  use create_product_response <- result.try(
+    sql.create_product(
+      ctx.db,
+      product_request.name,
+      option.unwrap(product_request.description, ""),
+      product_request.status,
+      product_request.price,
+    )
+    |> result.map_error(fn(_) { "Could not create product" }),
+  )
+
+  // Get the first product ID from the created product
+  use first_product <- result.try(case create_product_response.rows {
+    [first, ..] -> Ok(first)
+    [] -> Error("No product ID returned from db query")
+  })
+
+  use _path <- result.try(
+    create_product_image(ctx, product_request, first_product.id)
+    |> result.map_error(fn(err) { "Image upload failed: " <> err }),
+  )
+
+  // Then connects the created product to the groups the user is part of
+  let product_ids = list.map(create_product_response.rows, fn(row) { row.id })
+  use _ <- result.try(
+    sql.create_products_user_groups(ctx.db, product_ids, user.groups)
+    |> result.map_error(fn(err) { string.inspect(err) }),
+  )
+
+  Ok(Nil)
+}
+
+pub fn delete_product(
+  product_id product_id: Int,
+  context ctx: web.Context,
+  user user: User,
+) -> Result(Nil, String) {
+  use _ <- result.try(
+    sql.delete_product(ctx.db, product_id, user.groups)
+    |> result.map_error(fn(err) {
+      "Failed to delete product: " <> string.inspect(err)
+    }),
+  )
+
+  Ok(Nil)
 }

@@ -1,8 +1,9 @@
 import auth_server/lib/auth/auth
+import auth_server/lib/services/image_service
 import auth_server/lib/services/product_service
 import auth_server/lib/user/user
 import auth_server/web
-import gleam/http.{Get, Post}
+import gleam/http.{Delete, Get, Post}
 import wisp.{type Request, type Response}
 
 pub fn handle_request(req: Request, ctx: web.Context) -> Response {
@@ -26,7 +27,16 @@ pub fn handle_request(req: Request, ctx: web.Context) -> Response {
       case method {
         Get -> product_service.get_products(ctx, user)
         Post -> product_service.create_product(req, ctx, user)
+        Delete -> product_service.delete_product(req, ctx, user)
         _ -> wisp.not_found()
+      }
+    }
+    ["images"], method -> {
+      use req, user <- web.authenticated_middleware(req)
+
+      case method {
+        Delete -> image_service.delete_image(req, ctx, user)
+        _ -> wisp.method_not_allowed(allowed: [Delete])
       }
     }
     _, _ -> wisp.json_response("Not found", 404)
