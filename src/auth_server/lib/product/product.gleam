@@ -199,12 +199,11 @@ pub fn create_product_images(
   images images: List(String),
   product_id product_id: Int,
 ) -> Result(List(String), String) {
-  // Filter out empty strings
-  let valid_filenames = list.filter(images, fn(name) { name != "" })
+  // Create the image files and get the generated filenames
+  use filenames <- result.try(create_product_images_files(product_name, images))
 
-  use _ <- result.try(create_product_images_files(product_name, valid_filenames))
-
-  create_product_images_in_db(ctx, product_id, valid_filenames)
+  // Create database records with the actual filenames
+  create_product_images_in_db(ctx, product_id, filenames)
 }
 
 pub fn create_product(
