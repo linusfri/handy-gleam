@@ -57,13 +57,13 @@ pub fn delete_file(
 /// ```
 pub fn create_file(
   filename filename: String,
-  base64_encoded_file base64_encoded_file: Option(String),
+  base64_encoded_file base64_encoded_file: String,
   directory directory: String,
 ) {
   let static_directory_path = config().static_directory <> "/" <> directory
 
   case base64_encoded_file {
-    option.Some(base64_image) if base64_image != "" -> {
+    base64_image if base64_image != "" -> {
       // Ensure directory exists
       let _ = simplifile.create_directory_all(static_directory_path)
       let clean_name = string.replace(filename, " ", "_")

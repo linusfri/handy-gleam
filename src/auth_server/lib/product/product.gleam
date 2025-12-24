@@ -21,7 +21,7 @@ pub type CreateProductRequest {
     description: Option(String),
     status: ProductStatus,
     price: Float,
-    image: Option(String),
+    images: List(String),
   )
 }
 
@@ -55,13 +55,13 @@ pub fn create_product_row_decoder(product_data_create: Dynamic) {
     )
     use status <- decode.field("status", product_status_decoder())
     use price <- decode.field("price", product_price_decoder())
-    use image <- decode.field("image", decode.optional(decode.string))
+    use images <- decode.field("images", decode.list(decode.string))
     decode.success(CreateProductRequest(
       name:,
       description:,
       status:,
       price:,
-      image:,
+      images:,
     ))
   }
 
@@ -144,48 +144,67 @@ pub fn select_products_row_to_json(
   ])
 }
 
-/// Creates an image if base64 string is provided
-pub fn create_product_image(
-  ctx ctx: web.Context,
-  create_product_request create_product_request: CreateProductRequest,
-  product_id product_id: Int,
-) -> Result(String, String) {
-  let product_image_result =
-    file_handler.create_file(
-      filename: create_product_request.name,
-      base64_encoded_file: create_product_request.image,
-      directory: "images/products",
-    )
+fn create_product_images_files(product_name: String, images: List(String)) {
+  let valid_images = list.filter(images, fn(img) { img != "" })
 
-  use product_image_name <- result.try(product_image_result)
-
-  // If no image, return empty string
-  case product_image_name {
-    "" -> Ok("")
+  case valid_images {
+    [] -> Ok([])
     _ -> {
-      use created_image_row <- result.try(
-        sql.create_image(ctx.db, product_image_name)
+      list.map(valid_images, fn(base64_image) {
+        file_handler.create_file(
+          filename: product_name,
+          base64_encoded_file: base64_image,
+          directory: "images/products",
+        )
+      })
+      |> result.all()
+    }
+  }
+}
+
+fn create_product_images_in_db(
+  ctx: web.Context,
+  product_id: Int,
+  filenames: List(String),
+) {
+  case filenames {
+    [] -> Ok([])
+    _ -> {
+      // Create all image records in database
+      use created_images <- result.try(
+        sql.create_images(ctx.db, filenames)
         |> result.map_error(fn(err) {
-          "Failed to create image: " <> string.inspect(err)
+          "Failed to create images: " <> string.inspect(err)
         }),
       )
 
-      // Extract the image ID from the first row
-      case created_image_row.rows {
-        [first_image, ..] -> {
-          use _ <- result.try(
-            // Last argument is order
-            sql.create_product_image(ctx.db, product_id, first_image.id, 0)
-            |> result.map_error(fn(err) {
-              "Failed to link product image: " <> string.inspect(err)
-            }),
-          )
-          Ok(product_image_name)
-        }
-        [] -> Error("No image ID returned from database")
-      }
+      // Link all images to the product
+      let image_ids = list.map(created_images.rows, fn(row) { row.id })
+      use _ <- result.try(
+        sql.create_product_images(ctx.db, product_id, image_ids)
+        |> result.map_error(fn(err) {
+          "Failed to link product images: " <> string.inspect(err)
+        }),
+      )
+
+      Ok(filenames)
     }
   }
+}
+
+/// Creates images if base64 string is provided
+pub fn create_product_images(
+  ctx ctx: web.Context,
+  product_name product_name: String,
+  images images: List(String),
+  product_id product_id: Int,
+) -> Result(List(String), String) {
+  // Filter out empty strings
+  let valid_filenames = list.filter(images, fn(name) { name != "" })
+
+  use _ <- result.try(create_product_images_files(product_name, valid_filenames))
+
+  create_product_images_in_db(ctx, product_id, valid_filenames)
 }
 
 pub fn create_product(
@@ -217,7 +236,12 @@ pub fn create_product(
   })
 
   use _path <- result.try(
-    create_product_image(ctx, product_request, first_product.id)
+    create_product_images(
+      ctx,
+      product_request.name,
+      product_request.images,
+      first_product.id,
+    )
     |> result.map_error(fn(err) { "Image upload failed: " <> err }),
   )
 

@@ -9,36 +9,37 @@ import gleam/option.{type Option}
 import gleam/time/timestamp.{type Timestamp}
 import pog
 
-/// A row you get from running the `create_image` query
-/// defined in `./src/auth_server/sql/create_image.sql`.
+/// A row you get from running the `create_images` query
+/// defined in `./src/auth_server/sql/create_images.sql`.
 ///
 /// > 🐿️ This type definition was generated automatically using v4.6.0 of the
 /// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
 ///
-pub type CreateImageRow {
-  CreateImageRow(id: Int)
+pub type CreateImagesRow {
+  CreateImagesRow(id: Int, filename: String)
 }
 
-/// Runs the `create_image` query
-/// defined in `./src/auth_server/sql/create_image.sql`.
+/// Runs the `create_images` query
+/// defined in `./src/auth_server/sql/create_images.sql`.
 ///
 /// > 🐿️ This function was generated automatically using v4.6.0 of
 /// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
 ///
-pub fn create_image(
+pub fn create_images(
   db: pog.Connection,
-  arg_1: String,
-) -> Result(pog.Returned(CreateImageRow), pog.QueryError) {
+  arg_1: List(String),
+) -> Result(pog.Returned(CreateImagesRow), pog.QueryError) {
   let decoder = {
     use id <- decode.field(0, decode.int)
-    decode.success(CreateImageRow(id:))
+    use filename <- decode.field(1, decode.string)
+    decode.success(CreateImagesRow(id:, filename:))
   }
 
   "insert into images (filename, created_at)
-values ($1, now())
-returning id;"
+select unnest($1::text[]), now()
+returning id, filename;"
   |> pog.query
-  |> pog.parameter(pog.text(arg_1))
+  |> pog.parameter(pog.array(fn(value) { pog.text(value) }, arg_1))
   |> pog.returning(decoder)
   |> pog.execute(db)
 }
@@ -104,26 +105,25 @@ pub fn create_product(
   |> pog.execute(db)
 }
 
-/// Runs the `create_product_image` query
-/// defined in `./src/auth_server/sql/create_product_image.sql`.
+/// Runs the `create_product_images` query
+/// defined in `./src/auth_server/sql/create_product_images.sql`.
 ///
 /// > 🐿️ This function was generated automatically using v4.6.0 of
 /// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
 ///
-pub fn create_product_image(
+pub fn create_product_images(
   db: pog.Connection,
   arg_1: Int,
-  arg_2: Int,
-  arg_3: Int,
+  arg_2: List(Int),
 ) -> Result(pog.Returned(Nil), pog.QueryError) {
   let decoder = decode.map(decode.dynamic, fn(_) { Nil })
 
   "insert into product_image (product_id, image_id, display_order)
-values ($1, $2, $3);"
+select $1, image_id, row_number() over () - 1
+from unnest($2::int[]) as image_id;"
   |> pog.query
   |> pog.parameter(pog.int(arg_1))
-  |> pog.parameter(pog.int(arg_2))
-  |> pog.parameter(pog.int(arg_3))
+  |> pog.parameter(pog.array(fn(value) { pog.int(value) }, arg_2))
   |> pog.returning(decoder)
   |> pog.execute(db)
 }
