@@ -5,11 +5,23 @@ import gleam/option.{None, Some}
 import gleam/string
 import gleam/uri
 
-pub fn get_default_site_uri() {
+pub fn get_default_auth_uri() {
   uri.Uri(
     scheme: None,
     userinfo: None,
     host: Some(config().auth_endpoint),
+    port: None,
+    path: "",
+    query: None,
+    fragment: None,
+  )
+}
+
+pub fn get_default_admin_url() {
+  uri.Uri(
+    scheme: None,
+    userinfo: None,
+    host: Some(config().admin_endpoint),
     port: None,
     path: "",
     query: None,
@@ -31,7 +43,7 @@ pub fn get_token(req) {
   }
 }
 
-pub fn build_request_body(form_values: List(#(String, String))) {
+pub fn build_url_encoded_request_body(form_values: List(#(String, String))) {
   list.fold(form_values, "", fn(acc, name_value) {
     name_value.0 <> "=" <> name_value.1 <> "&" <> acc
   })

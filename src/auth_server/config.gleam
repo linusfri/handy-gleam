@@ -7,13 +7,20 @@ pub type Config {
   Config(
     secret_key: String,
     auth_endpoint: String,
+    admin_endpoint: String,
     pghost: String,
     static_directory: String,
   )
 }
 
 pub fn get_config() -> Config {
-  let envs = ["SECRET_KEY", "AUTH_ENDPOINT", "PGHOST", "STATIC_DIRECTORY"]
+  let envs = [
+    "SECRET_KEY",
+    "AUTH_ENDPOINT",
+    "ADMIN_ENDPOINT",
+    "PGHOST",
+    "STATIC_DIRECTORY",
+  ]
 
   list.each(envs, fn(env) {
     case envoy.get(env) {
@@ -27,9 +34,10 @@ pub fn get_config() -> Config {
 
   let assert Ok(secret_key) = envoy.get("SECRET_KEY")
   let assert Ok(auth_endpoint) = envoy.get("AUTH_ENDPOINT")
+  let assert Ok(admin_endpoint) = envoy.get("ADMIN_ENDPOINT")
   let assert Ok(pghost) = envoy.get("PGHOST")
   let assert Ok(static_directory) = envoy.get("STATIC_DIRECTORY")
-  Config(secret_key, auth_endpoint, pghost, static_directory)
+  Config(secret_key, auth_endpoint, admin_endpoint, pghost, static_directory)
 }
 
 pub fn static_directory() -> String {

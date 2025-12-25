@@ -17,7 +17,7 @@ import glow_auth/uri/uri_builder.{RelativePath}
 import wisp
 
 fn create_client(client_id: String) -> Client(body) {
-  let site = auth_utils.get_default_site_uri()
+  let site = auth_utils.get_default_auth_uri()
 
   Client(id: client_id, secret: "None", site: site)
 }
@@ -61,7 +61,8 @@ fn build_login_request(
 ) -> http_request.Request(String) {
   let client = create_client(login_form_data.client_id)
   let token_endpoint = RelativePath("token")
-  let request_body = auth_utils.build_request_body(login_form_data.body)
+  let request_body =
+    auth_utils.build_url_encoded_request_body(login_form_data.body)
 
   client_credentials(client, token_endpoint, RequestBody, DefaultScope)
   |> http_request.set_body(request_body)

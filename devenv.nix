@@ -24,6 +24,7 @@ in
     env = {
       SECRET_KEY = "supersecret";
       AUTH_ENDPOINT = "keycloak.friikod.se/realms/auth-server/protocol/openid-connect";
+      ADMIN_ENDPOINT = "keycloak.friikod.se/admin/realms/auth-server";
       STATIC_DIRECTORY = "static";
     };
 

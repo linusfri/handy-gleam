@@ -6,7 +6,7 @@ import gleam/http/request as http_request
 
 /// Requests user from authentication backend. In this case keycloak.
 pub fn request_get_user(access_token: String) {
-  let site_uri = auth_utils.get_default_site_uri()
+  let site_uri = auth_utils.get_default_auth_uri()
   let user_info_request =
     http_request.Request(
       method: http.Get,
