@@ -1,17 +1,12 @@
 import auth_server/lib/file_handlers/file_handler
-import auth_server/lib/user/types.{type User}
 import auth_server/sql.{
   type ProductStatus, type SelectProductsRow, Available, SelectProductsRow, Sold,
 }
-import auth_server/web
 import gleam/dynamic.{type Dynamic}
 import gleam/dynamic/decode
 import gleam/int
 import gleam/json
-import gleam/list
 import gleam/option.{type Option}
-import gleam/result
-import gleam/string
 import gleam/time/timestamp
 import pog
 
