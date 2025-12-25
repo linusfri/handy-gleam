@@ -1,4 +1,5 @@
-import auth_server/lib/product/product.{select_products_row_to_json}
+import auth_server/lib/product/product
+import auth_server/lib/product/transform.{select_products_row_to_json}
 import auth_server/lib/user/types.{type User}
 import auth_server/sql
 import auth_server/web
