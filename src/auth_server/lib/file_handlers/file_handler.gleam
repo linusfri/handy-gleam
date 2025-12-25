@@ -1,6 +1,6 @@
 import auth_server/config.{config}
 import gleam/bit_array
-import gleam/option.{type Option}
+import gleam/option.{type Option, Some}
 import gleam/result
 import gleam/string
 import simplifile
@@ -57,24 +57,22 @@ pub fn delete_file(
 /// ```
 pub fn create_file(
   filename filename: String,
-  base64_encoded_file base64_encoded_file: String,
+  base64_encoded_file base64_encoded_file: Option(String),
   directory directory: String,
 ) {
   let static_directory_path = config().static_directory <> "/" <> directory
 
   case base64_encoded_file {
-    base64_image if base64_image != "" -> {
+    Some(base64_image) if base64_image != "" -> {
       // Ensure directory exists
       let _ = simplifile.create_directory_all(static_directory_path)
       let clean_name = string.replace(filename, " ", "_")
-
-      let filename = clean_name <> "_" <> uuid.v4_string() <> ".png"
-      let upload_path = static_directory_path <> "/" <> filename
+      let upload_path = static_directory_path <> "/" <> clean_name
 
       save_base64_image(base64_image, upload_path)
       |> result.replace(filename)
     }
-    _ -> Ok("")
+    _ -> Error("Could not create file")
   }
 }
 

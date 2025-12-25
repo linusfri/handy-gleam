@@ -8,7 +8,7 @@ select
   products.price,
   products.created_at,
   products.updated_at,
-  COALESCE(array_agg(images.filename) filter (where images.filename is not null), '{}') as images
+  COALESCE(json_agg(json_build_object('id', images.id, 'filename', images.filename)) filter (where images.id is not null), '[]'::json) as images
 from products
 inner join product_user_group on products.id = product_user_group.product_id
 left join product_image on products.id = product_image.product_id

@@ -287,7 +287,7 @@ pub type SelectProductByIdRow {
     price: Float,
     created_at: Option(Timestamp),
     updated_at: Option(Timestamp),
-    images: List(String),
+    images: String,
   )
 }
 
@@ -310,7 +310,7 @@ pub fn select_product_by_id(
     use price <- decode.field(4, pog.numeric_decoder())
     use created_at <- decode.field(5, decode.optional(pog.timestamp_decoder()))
     use updated_at <- decode.field(6, decode.optional(pog.timestamp_decoder()))
-    use images <- decode.field(7, decode.list(decode.string))
+    use images <- decode.field(7, decode.string)
     decode.success(SelectProductByIdRow(
       id:,
       name:,
@@ -333,7 +333,7 @@ select
   products.price,
   products.created_at,
   products.updated_at,
-  COALESCE(array_agg(images.filename) filter (where images.filename is not null), '{}') as images
+  COALESCE(json_agg(json_build_object('id', images.id, 'filename', images.filename)) filter (where images.id is not null), '[]'::json) as images
 from products
 inner join product_user_group on products.id = product_user_group.product_id
 left join product_image on products.id = product_image.product_id
@@ -364,7 +364,7 @@ pub type SelectProductsRow {
     price: Float,
     created_at: Option(Timestamp),
     updated_at: Option(Timestamp),
-    images: List(String),
+    images: String,
   )
 }
 
@@ -385,7 +385,7 @@ pub fn select_products(
     use price <- decode.field(4, pog.numeric_decoder())
     use created_at <- decode.field(5, decode.optional(pog.timestamp_decoder()))
     use updated_at <- decode.field(6, decode.optional(pog.timestamp_decoder()))
-    use images <- decode.field(7, decode.list(decode.string))
+    use images <- decode.field(7, decode.string)
     decode.success(SelectProductsRow(
       id:,
       name:,
@@ -407,7 +407,7 @@ select
   products.price,
   products.created_at,
   products.updated_at,
-  COALESCE(array_agg(images.filename) filter (where images.filename is not null), '{}') as images
+  COALESCE(json_agg(json_build_object('id', images.id, 'filename', images.filename)) filter (where images.id is not null), '[]'::json) as images
 from products
 inner join product_user_group on products.id = product_user_group.product_id
 left join product_image on products.id = product_image.product_id

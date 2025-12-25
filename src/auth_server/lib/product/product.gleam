@@ -100,16 +100,21 @@ pub fn get_product_by_id(
   }
 }
 
-fn create_product_images_files(product_name: String, images: List(String)) {
-  let valid_images = list.filter(images, fn(img) { img != "" })
+fn create_product_images_files(
+  product_name: String,
+  images: List(transform.CreateProductImageRequest),
+) {
+  let valid_images =
+    list.filter(images, fn(img) { option.unwrap(img.filename, "") != "" })
 
   case valid_images {
     [] -> Ok([])
     _ -> {
-      list.map(valid_images, fn(base64_image) {
+      list.map(valid_images, fn(image) {
         file_handler.create_file(
-          filename: product_name,
-          base64_encoded_file: base64_image,
+          filename: product_name
+            <> option.unwrap(image.filename, "no_file_name"),
+          base64_encoded_file: image.data,
           directory: "images/products",
         )
       })
@@ -152,7 +157,7 @@ fn create_product_images_in_db(
 pub fn create_product_images(
   ctx ctx: web.Context,
   product_name product_name: String,
-  images images: List(String),
+  images images: List(transform.CreateProductImageRequest),
   product_id product_id: Int,
 ) -> Result(List(String), String) {
   // Create the image files and get the generated filenames

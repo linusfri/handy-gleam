@@ -1,14 +1,31 @@
 import auth_server/lib/file_handlers/file_handler
-import auth_server/sql.{
-  type ProductStatus, type SelectProductsRow, Available, SelectProductsRow, Sold,
-}
+import auth_server/sql.{type ProductStatus, Available, Sold}
 import gleam/dynamic.{type Dynamic}
 import gleam/dynamic/decode
 import gleam/int
 import gleam/json
 import gleam/option.{type Option}
+import gleam/result
 import gleam/time/timestamp
 import pog
+
+pub type State {
+  Existing
+  New
+}
+
+pub type ProductResponse {
+  ProductResponse(
+    id: Int,
+    name: String,
+    description: Option(String),
+    status: ProductStatus,
+    price: Float,
+    images: List(ProductImageResponse),
+    created_at: Option(timestamp.Timestamp),
+    updated_at: Option(timestamp.Timestamp),
+  )
+}
 
 pub type CreateProductRequest {
   CreateProductRequest(
@@ -16,8 +33,51 @@ pub type CreateProductRequest {
     description: Option(String),
     status: ProductStatus,
     price: Float,
-    images: List(String),
+    images: List(CreateProductImageRequest),
   )
+}
+
+pub type ProductImageResponse {
+  ProductImageResponse(id: Int, filename: String)
+}
+
+/// Could be something that only contains kind and id. Or it could contain kind and all of the other keys except id.
+pub type CreateProductImageRequest {
+  CreateProductImageRequest(
+    kind: State,
+    id: Option(Int),
+    data: Option(String),
+    filename: Option(String),
+    mimetype: Option(String),
+  )
+}
+
+fn product_image_response_decoder() -> decode.Decoder(ProductImageResponse) {
+  use id <- decode.field("id", decode.int)
+  use filename <- decode.field("filename", decode.string)
+  decode.success(ProductImageResponse(id:, filename:))
+}
+
+fn product_image_request_decoder() -> decode.Decoder(CreateProductImageRequest) {
+  use kind_str <- decode.field("kind", decode.string)
+  use id <- decode.field("id", decode.optional(decode.int))
+  use data <- decode.field("data", decode.optional(decode.string))
+  use filename <- decode.field("filename", decode.optional(decode.string))
+  use mimetype <- decode.field("mimetype", decode.optional(decode.string))
+
+  let kind = case kind_str {
+    "new" -> New
+    "existing" -> Existing
+    _ -> New
+  }
+
+  decode.success(CreateProductImageRequest(
+    kind:,
+    id:,
+    data:,
+    filename:,
+    mimetype:,
+  ))
 }
 
 fn product_status_decoder() -> decode.Decoder(ProductStatus) {
@@ -50,7 +110,10 @@ pub fn create_product_row_decoder(product_data_create: Dynamic) {
     )
     use status <- decode.field("status", product_status_decoder())
     use price <- decode.field("price", product_price_decoder())
-    use images <- decode.field("images", decode.list(decode.string))
+    use images <- decode.field(
+      "images",
+      decode.list(product_image_request_decoder()),
+    )
     decode.success(CreateProductRequest(
       name:,
       description:,
@@ -63,7 +126,7 @@ pub fn create_product_row_decoder(product_data_create: Dynamic) {
   decode.run(product_data_create, products_row_decoder)
 }
 
-pub fn select_product_row_decoder(product_data_select: Dynamic) {
+pub fn product_response_decoder(product_data_select: Dynamic) {
   let products_row_decoder = {
     use id <- decode.field("id", decode.int)
     use name <- decode.field("name", decode.string)
@@ -73,7 +136,10 @@ pub fn select_product_row_decoder(product_data_select: Dynamic) {
     )
     use status <- decode.field("status", product_status_decoder())
     use price <- decode.field("price", decode.float)
-    use images <- decode.field("images", decode.list(decode.string))
+    use images <- decode.field(
+      "images",
+      decode.list(product_image_response_decoder()),
+    )
     use created_at <- decode.field(
       "created_at",
       decode.optional(pog.timestamp_decoder()),
@@ -82,7 +148,7 @@ pub fn select_product_row_decoder(product_data_select: Dynamic) {
       "updated_at",
       decode.optional(pog.timestamp_decoder()),
     )
-    decode.success(SelectProductsRow(
+    decode.success(ProductResponse(
       id:,
       name:,
       description:,
@@ -98,9 +164,9 @@ pub fn select_product_row_decoder(product_data_select: Dynamic) {
 }
 
 pub fn select_products_row_to_json(
-  select_products_row: SelectProductsRow,
+  select_products_row: sql.SelectProductsRow,
 ) -> json.Json {
-  let SelectProductsRow(
+  let sql.SelectProductsRow(
     id:,
     name:,
     description:,
@@ -110,13 +176,23 @@ pub fn select_products_row_to_json(
     created_at:,
     updated_at:,
   ) = select_products_row
+  let images =
+    json.parse(images, decode.list(product_image_response_decoder()))
+    |> result.unwrap([])
+
   json.object([
     #("id", json.int(id)),
     #("name", json.string(name)),
     #(
       "images",
-      json.array(images, fn(filename) {
-        json.string(file_handler.file_url(filename, "images/products"))
+      json.array(images, fn(image) {
+        json.object([
+          #("id", json.int(image.id)),
+          #(
+            "url",
+            json.string(file_handler.file_url(image.filename, "images/products")),
+          ),
+        ])
       }),
     ),
     #("description", case description {

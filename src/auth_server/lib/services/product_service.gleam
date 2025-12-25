@@ -37,6 +37,7 @@ pub fn create_product(
   case product.create_product(data: json_body, context: ctx, user: user) {
     Ok(_) -> wisp.json_response("Product created", 201)
     Error(err) -> {
+      echo err
       wisp.json_response(err, 500)
     }
   }
