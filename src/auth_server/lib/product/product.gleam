@@ -9,6 +9,7 @@ import gleam/list
 import gleam/option
 import gleam/result
 import gleam/string
+import pog
 
 pub fn create_product(
   data data: Dynamic,
@@ -20,41 +21,38 @@ pub fn create_product(
     |> result.map_error(fn(errors) { string.inspect(errors) }),
   )
 
-  use create_product_response <- result.try(
-    sql.create_product(
-      ctx.db,
-      product_request.name,
-      option.unwrap(product_request.description, ""),
-      product_request.status,
-      product_request.price,
+  pog.transaction(ctx.db, fn(tx) {
+    use create_product_response <- result.try(
+      sql.create_product(
+        tx,
+        product_request.name,
+        option.unwrap(product_request.description, ""),
+        product_request.status,
+        product_request.price,
+      )
+      |> result.map_error(fn(_) { "Could not create product" }),
     )
-    |> result.map_error(fn(_) { "Could not create product" }),
-  )
 
-  // Get the first product ID from the created product
-  use first_product <- result.try(case create_product_response.rows {
-    [first, ..] -> Ok(first)
-    [] -> Error("No product ID returned from db query")
-  })
+    use first_product <- result.try(case create_product_response.rows {
+      [first, ..] -> Ok(first)
+      [] -> Error("No product ID returned from db query")
+    })
 
-  use _path <- result.try(
-    create_product_images(
-      ctx,
-      product_request.name,
+    use _ <- result.try(create_product_images_tx(
+      tx,
+      first_product.name,
       product_request.images,
       first_product.id,
+    ))
+
+    use _ <- result.try(
+      sql.create_products_user_groups(tx, [first_product.id], user.groups)
+      |> result.map_error(fn(err) { string.inspect(err) }),
     )
-    |> result.map_error(fn(err) { "Image upload failed: " <> err }),
-  )
 
-  // Then connects the created product to the groups the user is part of
-  let product_ids = list.map(create_product_response.rows, fn(row) { row.id })
-  use _ <- result.try(
-    sql.create_products_user_groups(ctx.db, product_ids, user.groups)
-    |> result.map_error(fn(err) { string.inspect(err) }),
-  )
-
-  Ok(Nil)
+    Ok(Nil)
+  })
+  |> result.map_error(fn(err) { "Transaction failed: " <> string.inspect(err) })
 }
 
 pub fn delete_product(
@@ -101,12 +99,11 @@ pub fn get_product_by_id(
   }
 }
 
-/// Creates images if base64 string is provided
-pub fn create_product_images(
-  ctx ctx: web.Context,
-  product_name product_name: String,
-  images images: List(transform.CreateProductImageRequest),
-  product_id product_id: Int,
+fn create_product_images_tx(
+  tx: pog.Connection,
+  product_name: String,
+  images: List(transform.CreateProductImageRequest),
+  product_id: Int,
 ) -> Result(List(file_types.CreatedFile), String) {
   let #(existing_images, new_images) =
     list.partition(images, fn(img) {
@@ -117,10 +114,10 @@ pub fn create_product_images(
     })
 
   // Link existing images to the product
-  use _ <- result.try(link_existing_images(ctx, product_id, existing_images))
+  use _ <- result.try(link_existing_images_tx(tx, product_id, existing_images))
 
   // Create and link new images
-  create_new_images(ctx, product_name, product_id, new_images)
+  create_new_images_tx(tx, product_name, product_id, new_images)
 }
 
 fn create_product_images_files(
@@ -161,8 +158,8 @@ fn create_product_images_files(
   }
 }
 
-fn link_existing_images(
-  ctx: web.Context,
+fn link_existing_images_tx(
+  tx: pog.Connection,
   product_id: Int,
   images: List(transform.CreateProductImageRequest),
 ) -> Result(Nil, String) {
@@ -177,7 +174,7 @@ fn link_existing_images(
   case ids {
     [] -> Ok(Nil)
     _ ->
-      sql.create_product_images(ctx.db, product_id, ids)
+      sql.create_product_images(tx, product_id, ids)
       |> result.map(fn(_) { Nil })
       |> result.map_error(fn(err) {
         "Failed to link existing images: " <> string.inspect(err)
@@ -185,8 +182,8 @@ fn link_existing_images(
   }
 }
 
-fn create_new_images(
-  ctx: web.Context,
+fn create_new_images_tx(
+  tx: pog.Connection,
   product_name: String,
   product_id: Int,
   images: List(transform.CreateProductImageRequest),
@@ -206,7 +203,7 @@ fn create_new_images(
 
       // Create all file records in database
       use created_images <- result.try(
-        sql.create_files(ctx.db, file_names, file_types, file_contexts)
+        sql.create_files(tx, file_names, file_types, file_contexts)
         |> result.map_error(fn(err) {
           "Failed to create images: " <> string.inspect(err)
         }),
@@ -215,7 +212,7 @@ fn create_new_images(
       // Link all images to the product
       let image_ids = list.map(created_images.rows, fn(row) { row.id })
       use _ <- result.try(
-        sql.create_product_images(ctx.db, product_id, image_ids)
+        sql.create_product_images(tx, product_id, image_ids)
         |> result.map_error(fn(err) {
           "Failed to link product images: " <> string.inspect(err)
         }),
