@@ -1,5 +1,6 @@
 import auth_server/config.{config}
 import auth_server/lib/file/types.{type File}
+import auth_server/lib/utils/logger
 import auth_server/sql
 import gleam/bit_array
 import gleam/option.{Some}
@@ -21,10 +22,16 @@ pub fn save_base64_image(
     Ok(image_bytes) -> {
       case simplifile.write_bits(to: output_path, bits: image_bytes) {
         Ok(_) -> Ok(Nil)
-        Error(err) -> Error("Failed to write file: " <> string.inspect(err))
+        Error(err) -> {
+          logger.log_error_with_context("save_base64_image:write_bits", err)
+          Error("Failed to write file: " <> string.inspect(err))
+        }
       }
     }
-    Error(_) -> Error("Invalid base64 string")
+    Error(err) -> {
+      logger.log_error_with_context("save_base64_image:base64_decode", err)
+      Error("Invalid base64 string")
+    }
   }
 }
 

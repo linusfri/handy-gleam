@@ -2,6 +2,7 @@ import auth_server/lib/file/types as file_types
 import auth_server/lib/file_handlers/file_handler
 import auth_server/lib/product/transform
 import auth_server/lib/user/types.{type User}
+import auth_server/lib/utils/logger
 import auth_server/sql.{type SelectProductsRow, SelectProductsRow}
 import auth_server/web
 import gleam/dynamic.{type Dynamic}
@@ -18,7 +19,10 @@ pub fn create_product(
 ) -> Result(Nil, String) {
   use product_request <- result.try(
     transform.create_product_request_decoder(data)
-    |> result.map_error(fn(errors) { string.inspect(errors) }),
+    |> result.map_error(fn(errors) {
+      logger.log_error_with_context("create_product:decode_request", errors)
+      string.inspect(errors)
+    }),
   )
 
   pog.transaction(ctx.db, fn(tx) {
@@ -30,7 +34,10 @@ pub fn create_product(
         product_request.status,
         product_request.price,
       )
-      |> result.map_error(fn(_) { "Could not create product" }),
+      |> result.map_error(fn(err) {
+        logger.log_error_with_context("create_product:sql.create_product", err)
+        "Could not create product"
+      }),
     )
 
     use first_product <- result.try(case create_product_response.rows {
@@ -47,12 +54,18 @@ pub fn create_product(
 
     use _ <- result.try(
       sql.create_products_user_groups(tx, [first_product.id], user.groups)
-      |> result.map_error(fn(err) { string.inspect(err) }),
+      |> result.map_error(fn(err) {
+        logger.log_error_with_context("create_product:link_user_groups", err)
+        string.inspect(err)
+      }),
     )
 
     Ok(Nil)
   })
-  |> result.map_error(fn(err) { "Transaction failed: " <> string.inspect(err) })
+  |> result.map_error(fn(err) {
+    logger.log_error_with_context("create_product:transaction", err)
+    "Transaction failed: " <> string.inspect(err)
+  })
 }
 
 pub fn delete_product(
@@ -63,6 +76,7 @@ pub fn delete_product(
   use _ <- result.try(
     sql.delete_product(ctx.db, product_id, user.groups)
     |> result.map_error(fn(err) {
+      logger.log_error_with_context("delete_product:sql.delete_product", err)
       "Failed to delete product: " <> string.inspect(err)
     }),
   )
@@ -78,6 +92,10 @@ pub fn get_product_by_id(
   use product_result <- result.try(
     sql.select_product_by_id(ctx.db, product_id, user.groups)
     |> result.map_error(fn(err) {
+      logger.log_error_with_context(
+        "get_product_by_id:sql.select_product_by_id",
+        err,
+      )
       "Failed to get product: " <> string.inspect(err)
     }),
   )
