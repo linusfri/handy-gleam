@@ -13,27 +13,36 @@ pub fn delete_file(
   file_id: Int,
   user: User,
 ) -> Result(Nil, String) {
-  use select_file_result <- result.try(
-    sql.select_file_by_id(db, file_id)
+  use deleted_row <- result.try(
+    pog.transaction(db, fn(tx) {
+      use select_file_result <- result.try(
+        sql.select_file_by_id(tx, file_id)
+        |> result.map_error(fn(err) {
+          "Failed to get image: " <> string.inspect(err)
+        }),
+      )
+
+      use file_sql_row <- result.try(case select_file_result.rows {
+        [first, ..] -> Ok(first)
+        [] -> Error("No image found with that ID")
+      })
+
+      // Delete from DB (only if user has access to the product)
+      use _ <- result.try(
+        sql.delete_file_by_id(tx, file_id, user.groups)
+        |> result.map_error(fn(err) {
+          "DB deletion failed: " <> string.inspect(err)
+        }),
+      )
+
+      Ok(file_sql_row)
+    })
     |> result.map_error(fn(err) {
-      "Failed to get image: " <> string.inspect(err)
+      "Transaction failed: " <> string.inspect(err)
     }),
   )
 
-  use file_sql_row <- result.try(case select_file_result.rows {
-    [first, ..] -> Ok(first)
-    [] -> Error("No image found with that ID")
-  })
-
-  // Delete from DB (only if user has access to the product)
-  use _ <- result.try(
-    sql.delete_file_by_id(db, file_id, user.groups)
-    |> result.map_error(fn(err) {
-      "DB deletion failed: " <> string.inspect(err)
-    }),
-  )
-
-  let file = select_file_by_id_row_to_file(file_sql_row)
+  let file = select_file_by_id_row_to_file(deleted_row)
 
   // Delete from disk
   use _ <- result.try(file_handler.delete_file(file))

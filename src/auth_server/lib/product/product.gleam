@@ -113,10 +113,8 @@ fn create_product_images_tx(
       }
     })
 
-  // Link existing images to the product
   use _ <- result.try(link_existing_images_tx(tx, product_id, existing_images))
 
-  // Create and link new images
   create_new_images_tx(tx, product_name, product_id, new_images)
 }
 
@@ -125,14 +123,14 @@ fn create_product_images_files(
   images: List(transform.CreateProductImageRequest),
 ) -> Result(List(file_types.CreatedFile), String) {
   let valid_images =
-    list.filter_map(images, fn(img) {
-      let filename = option.unwrap(img.filename, "no_filename")
-      let filetype = option.unwrap(img.mimetype, "application/octet-stream")
-      case img.filename {
+    list.filter_map(images, fn(image) {
+      let filename = option.unwrap(image.filename, "no_filename")
+      let filetype = option.unwrap(image.mimetype, "application/octet-stream")
+      case image.filename {
         option.Some(name) if name != "" ->
           Ok(file_types.File(
             id: option.None,
-            data: img.data,
+            data: image.data,
             filename: product_name <> filename,
             file_type: filetype,
             context_type: sql.Product,

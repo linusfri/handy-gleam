@@ -65,7 +65,7 @@ pub fn create_file(file: File) {
       let clean_name = string.replace(file.filename, " ", "_")
 
       save_base64_image(base64_data, upload_path <> "/" <> clean_name)
-      |> result.replace(file.filename)
+      |> result.replace(clean_name)
     }
     _ -> Error("Could not create file")
   }
