@@ -2,7 +2,7 @@ import auth_server/config.{config}
 import auth_server/lib/file/types.{type File}
 import auth_server/sql
 import gleam/bit_array
-import gleam/option.{type Option, Some}
+import gleam/option.{Some}
 import gleam/result
 import gleam/string
 import simplifile
@@ -45,8 +45,7 @@ pub fn delete_file(file: File) -> Result(Nil, String) {
 /// 
 /// # Examples
 /// ```gleam
-/// create_image_file("product_abc_123.png", Some("base64"), "products")
-/// create_image_file("avatar_xyz_456.png", Some("base64"), "products")
+/// delete_image(file_of_type_file)
 /// ```
 pub fn create_file(file: File) {
   let directory =
@@ -83,13 +82,6 @@ pub fn file_url(file: File) -> String {
   }
 
   let file_type = file.file_type
-  echo static_files_directory
-    <> "/"
-    <> context_dir
-    <> "/"
-    <> file_type
-    <> "/"
-    <> file.filename
 
   static_files_directory
   <> "/"
