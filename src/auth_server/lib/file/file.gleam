@@ -1,0 +1,53 @@
+import auth_server/lib/file/types as file_types
+import auth_server/lib/file_handlers/file_handler
+import auth_server/lib/user/types.{type User}
+import auth_server/sql
+import gleam/option
+import gleam/result
+import gleam/string
+import pog
+
+/// Deletes an image from database and disk
+pub fn delete_file(
+  db: pog.Connection,
+  file_id: Int,
+  user: User,
+) -> Result(Nil, String) {
+  use select_file_result <- result.try(
+    sql.select_file_by_id(db, file_id)
+    |> result.map_error(fn(err) {
+      "Failed to get image: " <> string.inspect(err)
+    }),
+  )
+
+  use file_sql_row <- result.try(case select_file_result.rows {
+    [first, ..] -> Ok(first)
+    [] -> Error("No image found with that ID")
+  })
+
+  // Delete from DB (only if user has access to the product)
+  use _ <- result.try(
+    sql.delete_file_by_id(db, file_id, user.groups)
+    |> result.map_error(fn(err) {
+      "DB deletion failed: " <> string.inspect(err)
+    }),
+  )
+
+  let file = select_file_by_id_row_to_file(file_sql_row)
+
+  // Delete from disk
+  use _ <- result.try(file_handler.delete_file(file))
+
+  Ok(Nil)
+}
+
+/// Converts SelectFileByIdRow to File
+pub fn select_file_by_id_row_to_file(row: sql.SelectFileByIdRow) {
+  file_types.File(
+    id: option.Some(row.id),
+    data: option.None,
+    filename: row.filename,
+    file_type: row.file_type,
+    context_type: row.context_type,
+  )
+}

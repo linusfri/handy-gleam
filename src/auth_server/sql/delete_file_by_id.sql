@@ -1,6 +1,6 @@
 -- name: delete_image_by_id
--- Deletes an image only if it belongs to a product in user's groups
-delete from images i
+-- Deletes a file only if it belongs to a product in user's groups
+delete from files i
 where i.id = $1
 and exists (
   select 1 from product_image pi

@@ -1,4 +1,4 @@
-import auth_server/lib/image/image
+import auth_server/lib/file/file
 import auth_server/lib/user/types.{type User}
 import auth_server/web
 import gleam/http
@@ -27,14 +27,14 @@ pub fn delete_image(
       |> result.replace_error("Invalid image id"),
     )
 
-    image.delete_image(ctx.db, image_id, user)
+    file.delete_file(ctx.db, image_id, user)
   }
 
   case delete_image_result {
     Ok(_) -> wisp.json_response("Image deleted successfully", 200)
     Error("No image id provided") ->
       wisp.json_response("No image id provided", 400)
-    Error("Invalid image id") -> wisp.json_response("Invalid image id", 400)
+    Error("No image found with that ID" as err) -> wisp.json_response(err, 400)
     Error(err) -> wisp.json_response(err, 500)
   }
 }

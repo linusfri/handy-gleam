@@ -1,5 +1,5 @@
 import auth_server/lib/product/product
-import auth_server/lib/product/transform.{select_products_row_to_json}
+import auth_server/lib/product/transform.{product_to_json}
 import auth_server/lib/user/types.{type User}
 import auth_server/sql
 import auth_server/web
@@ -15,12 +15,12 @@ import wisp
 pub fn get_products(ctx: web.Context, user: User) {
   case sql.select_products(ctx.db, user.groups) {
     Ok(products) -> {
-      let products_json =
+      let json_products =
         products.rows
-        |> list.map(select_products_row_to_json)
+        |> list.map(product_to_json)
         |> json.array(of: fn(x) { x })
 
-      wisp.json_response(json.to_string(products_json), 200)
+      wisp.json_response(json.to_string(json_products), 200)
     }
     Error(error) -> wisp.json_response(string.inspect(error), 500)
   }
@@ -86,7 +86,7 @@ pub fn get_product(
 
   case get_product_result {
     Ok(product_row) -> {
-      let product_json = select_products_row_to_json(product_row)
+      let product_json = product_to_json(product_row)
       wisp.json_response(json.to_string(product_json), 200)
     }
     Error("Invalid product id") -> wisp.json_response("Invalid product id", 400)

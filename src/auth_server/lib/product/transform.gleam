@@ -1,3 +1,4 @@
+import auth_server/lib/file/types.{type File, File}
 import auth_server/lib/file_handlers/file_handler
 import auth_server/sql.{type ProductStatus, Available, Sold}
 import gleam/dynamic.{type Dynamic}
@@ -14,31 +15,17 @@ pub type State {
   New
 }
 
-pub type ProductResponse {
-  ProductResponse(
+pub type Product {
+  Product(
     id: Int,
     name: String,
     description: Option(String),
     status: ProductStatus,
     price: Float,
-    images: List(ProductImageResponse),
+    images: List(File),
     created_at: Option(timestamp.Timestamp),
     updated_at: Option(timestamp.Timestamp),
   )
-}
-
-pub type CreateProductRequest {
-  CreateProductRequest(
-    name: String,
-    description: Option(String),
-    status: ProductStatus,
-    price: Float,
-    images: List(CreateProductImageRequest),
-  )
-}
-
-pub type ProductImageResponse {
-  ProductImageResponse(id: Int, filename: String)
 }
 
 /// Could be something that only contains kind and id. Or it could contain kind and all of the other keys except id.
@@ -52,10 +39,39 @@ pub type CreateProductImageRequest {
   )
 }
 
-fn product_image_response_decoder() -> decode.Decoder(ProductImageResponse) {
+pub type CreateProductRequest {
+  CreateProductRequest(
+    name: String,
+    description: Option(String),
+    status: ProductStatus,
+    price: Float,
+    images: List(CreateProductImageRequest),
+  )
+}
+
+fn product_image_response_decoder() -> decode.Decoder(File) {
   use id <- decode.field("id", decode.int)
   use filename <- decode.field("filename", decode.string)
-  decode.success(ProductImageResponse(id:, filename:))
+  use file_type <- decode.field("file_type", decode.string)
+  use context_type <- decode.field("context_type", context_type_decoder())
+
+  decode.success(File(
+    id: option.Some(id),
+    data: option.None,
+    filename:,
+    context_type:,
+    file_type:,
+  ))
+}
+
+fn context_type_decoder() -> decode.Decoder(sql.ContextTypeEnum) {
+  use value <- decode.then(decode.string)
+  case value {
+    "product" -> decode.success(sql.Product)
+    "user" -> decode.success(sql.User)
+    "misc" -> decode.success(sql.Misc)
+    _ -> decode.failure(sql.Misc, "ContextTypeEnum")
+  }
 }
 
 fn product_image_request_decoder() -> decode.Decoder(CreateProductImageRequest) {
@@ -101,7 +117,7 @@ fn product_status_to_json(product_status: ProductStatus) -> json.Json {
   }
 }
 
-pub fn create_product_row_decoder(product_data_create: Dynamic) {
+pub fn create_product_request_decoder(product_data_create: Dynamic) {
   let products_row_decoder = {
     use name <- decode.field("name", decode.string)
     use description <- decode.field(
@@ -126,7 +142,7 @@ pub fn create_product_row_decoder(product_data_create: Dynamic) {
   decode.run(product_data_create, products_row_decoder)
 }
 
-pub fn product_response_decoder(product_data_select: Dynamic) {
+pub fn product_decoder(product_data: Dynamic) {
   let products_row_decoder = {
     use id <- decode.field("id", decode.int)
     use name <- decode.field("name", decode.string)
@@ -148,7 +164,7 @@ pub fn product_response_decoder(product_data_select: Dynamic) {
       "updated_at",
       decode.optional(pog.timestamp_decoder()),
     )
-    decode.success(ProductResponse(
+    decode.success(Product(
       id:,
       name:,
       description:,
@@ -160,12 +176,10 @@ pub fn product_response_decoder(product_data_select: Dynamic) {
     ))
   }
 
-  decode.run(product_data_select, products_row_decoder)
+  decode.run(product_data, products_row_decoder)
 }
 
-pub fn select_products_row_to_json(
-  select_products_row: sql.SelectProductsRow,
-) -> json.Json {
+pub fn product_to_json(product_to_json: sql.SelectProductsRow) -> json.Json {
   let sql.SelectProductsRow(
     id:,
     name:,
@@ -175,7 +189,7 @@ pub fn select_products_row_to_json(
     images:,
     created_at:,
     updated_at:,
-  ) = select_products_row
+  ) = product_to_json
   let images =
     json.parse(images, decode.list(product_image_response_decoder()))
     |> result.unwrap([])
@@ -187,11 +201,8 @@ pub fn select_products_row_to_json(
       "images",
       json.array(images, fn(image) {
         json.object([
-          #("id", json.int(image.id)),
-          #(
-            "url",
-            json.string(file_handler.file_url(image.filename, "images/products")),
-          ),
+          #("id", json.nullable(image.id, of: json.int)),
+          #("url", json.string(file_handler.file_url(image))),
         ])
       }),
     ),

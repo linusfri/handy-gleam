@@ -9,37 +9,54 @@ import gleam/option.{type Option}
 import gleam/time/timestamp.{type Timestamp}
 import pog
 
-/// A row you get from running the `create_images` query
-/// defined in `./src/auth_server/sql/create_images.sql`.
+/// A row you get from running the `create_files` query
+/// defined in `./src/auth_server/sql/create_files.sql`.
 ///
 /// > 🐿️ This type definition was generated automatically using v4.6.0 of the
 /// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
 ///
-pub type CreateImagesRow {
-  CreateImagesRow(id: Int, filename: String)
+pub type CreateFilesRow {
+  CreateFilesRow(
+    id: Int,
+    filename: String,
+    file_type: String,
+    context_type: ContextTypeEnum,
+  )
 }
 
-/// Runs the `create_images` query
-/// defined in `./src/auth_server/sql/create_images.sql`.
+/// Runs the `create_files` query
+/// defined in `./src/auth_server/sql/create_files.sql`.
 ///
 /// > 🐿️ This function was generated automatically using v4.6.0 of
 /// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
 ///
-pub fn create_images(
+pub fn create_files(
   db: pog.Connection,
   arg_1: List(String),
-) -> Result(pog.Returned(CreateImagesRow), pog.QueryError) {
+  arg_2: List(String),
+  arg_3: List(ContextTypeEnum),
+) -> Result(pog.Returned(CreateFilesRow), pog.QueryError) {
   let decoder = {
     use id <- decode.field(0, decode.int)
     use filename <- decode.field(1, decode.string)
-    decode.success(CreateImagesRow(id:, filename:))
+    use file_type <- decode.field(2, decode.string)
+    use context_type <- decode.field(3, context_type_enum_decoder())
+    decode.success(CreateFilesRow(id:, filename:, file_type:, context_type:))
   }
 
-  "insert into images (filename, created_at)
-select unnest($1::text[]), now()
-returning id, filename;"
+  "insert into files (filename, file_type, context_type)
+select * from unnest(
+  $1::text[],              -- filenames
+  $2::text[],              -- file_types (MIME types)
+  $3::context_type_enum[]  -- context_types context_type_enum 
+)
+returning id, filename, file_type, context_type;"
   |> pog.query
   |> pog.parameter(pog.array(fn(value) { pog.text(value) }, arg_1))
+  |> pog.parameter(pog.array(fn(value) { pog.text(value) }, arg_2))
+  |> pog.parameter(
+    pog.array(fn(value) { context_type_enum_encoder(value) }, arg_3),
+  )
   |> pog.returning(decoder)
   |> pog.execute(db)
 }
@@ -175,12 +192,12 @@ cross join unnest($2::text[]) as g(user_group_id);"
 }
 
 /// name: delete_image_by_id
-/// Deletes an image only if it belongs to a product in user's groups
+/// Deletes a file only if it belongs to a product in user's groups
 ///
 /// > 🐿️ This function was generated automatically using v4.6.0 of
 /// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
 ///
-pub fn delete_image_by_id(
+pub fn delete_file_by_id(
   db: pog.Connection,
   arg_1: Int,
   arg_2: List(String),
@@ -188,8 +205,8 @@ pub fn delete_image_by_id(
   let decoder = decode.map(decode.dynamic, fn(_) { Nil })
 
   "-- name: delete_image_by_id
--- Deletes an image only if it belongs to a product in user's groups
-delete from images i
+-- Deletes a file only if it belongs to a product in user's groups
+delete from files i
 where i.id = $1
 and exists (
   select 1 from product_image pi
@@ -234,37 +251,54 @@ and exists (
   |> pog.execute(db)
 }
 
-/// A row you get from running the `select_image_by_id` query
-/// defined in `./src/auth_server/sql/select_image_by_id.sql`.
+/// A row you get from running the `select_file_by_id` query
+/// defined in `./src/auth_server/sql/select_file_by_id.sql`.
 ///
 /// > 🐿️ This type definition was generated automatically using v4.6.0 of the
 /// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
 ///
-pub type SelectImageByIdRow {
-  SelectImageByIdRow(id: Int, filename: String, created_at: Option(Timestamp))
+pub type SelectFileByIdRow {
+  SelectFileByIdRow(
+    id: Int,
+    filename: String,
+    file_type: String,
+    context_type: ContextTypeEnum,
+    deleted: Option(Bool),
+    created_at: Option(Timestamp),
+  )
 }
 
 /// name: select_image_by_id
-/// Get image details by ID
+/// Get file details by ID
 ///
 /// > 🐿️ This function was generated automatically using v4.6.0 of
 /// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
 ///
-pub fn select_image_by_id(
+pub fn select_file_by_id(
   db: pog.Connection,
   arg_1: Int,
-) -> Result(pog.Returned(SelectImageByIdRow), pog.QueryError) {
+) -> Result(pog.Returned(SelectFileByIdRow), pog.QueryError) {
   let decoder = {
     use id <- decode.field(0, decode.int)
     use filename <- decode.field(1, decode.string)
-    use created_at <- decode.field(2, decode.optional(pog.timestamp_decoder()))
-    decode.success(SelectImageByIdRow(id:, filename:, created_at:))
+    use file_type <- decode.field(2, decode.string)
+    use context_type <- decode.field(3, context_type_enum_decoder())
+    use deleted <- decode.field(4, decode.optional(decode.bool))
+    use created_at <- decode.field(5, decode.optional(pog.timestamp_decoder()))
+    decode.success(SelectFileByIdRow(
+      id:,
+      filename:,
+      file_type:,
+      context_type:,
+      deleted:,
+      created_at:,
+    ))
   }
 
   "-- name: select_image_by_id
--- Get image details by ID
-select id, filename, created_at
-from images
+-- Get file details by ID
+select *
+from files
 where id = $1;"
   |> pog.query
   |> pog.parameter(pog.int(arg_1))
@@ -333,11 +367,11 @@ select
   products.price,
   products.created_at,
   products.updated_at,
-  COALESCE(json_agg(json_build_object('id', images.id, 'filename', images.filename)) filter (where images.id is not null), '[]'::json) as images
+  COALESCE(json_agg(json_build_object('id', files.id, 'filename', files.filename, 'file_type', files.file_type, 'context_type', files.context_type)) filter (where files.id is not null), '[]'::json) as images
 from products
 inner join product_user_group on products.id = product_user_group.product_id
 left join product_image on products.id = product_image.product_id
-left join images on product_image.image_id = images.id
+left join files on product_image.image_id = files.id
 where products.id = $1
 and product_user_group.user_group_id = any($2)
 group by products.id, products.name, products.description, products.status, products.price, products.created_at, products.updated_at
@@ -399,7 +433,7 @@ pub fn select_products(
   }
 
   "-- select_products.sql
-select 
+select
   products.id,
   products.name,
   products.description,
@@ -407,14 +441,41 @@ select
   products.price,
   products.created_at,
   products.updated_at,
-  COALESCE(json_agg(json_build_object('id', images.id, 'filename', images.filename)) filter (where images.id is not null), '[]'::json) as images
-from products
-inner join product_user_group on products.id = product_user_group.product_id
-left join product_image on products.id = product_image.product_id
-left join images on product_image.image_id = images.id
-where product_user_group.user_group_id = any($1)
-group by products.id, products.name, products.description, products.status, products.price, products.created_at, products.updated_at
-order by products.id;"
+  COALESCE(
+    json_agg(
+      json_build_object(
+        'id',
+        files.id,
+        'filename',
+        files.filename,
+        'file_type',
+        files.file_type,
+        'context_type',
+        files.context_type
+      )
+    ) filter (
+      where
+        files.id is not null
+    ),
+    '[]' :: json
+  ) as images
+from
+  products
+  inner join product_user_group on products.id = product_user_group.product_id
+  left join product_image on products.id = product_image.product_id
+  left join files on product_image.image_id = files.id
+where
+  product_user_group.user_group_id = any($1)
+group by
+  products.id,
+  products.name,
+  products.description,
+  products.status,
+  products.price,
+  products.created_at,
+  products.updated_at
+order by
+  products.id;"
   |> pog.query
   |> pog.parameter(pog.array(fn(value) { pog.text(value) }, arg_1))
   |> pog.returning(decoder)
@@ -423,7 +484,35 @@ order by products.id;"
 
 // --- Enums -------------------------------------------------------------------
 
-/// Corresponds to the Postgres `product_status` enum.
+/// Corresponds to the Postgres `context_type_enum` enum.
+///
+/// > 🐿️ This type definition was generated automatically using v4.6.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type ContextTypeEnum {
+  Misc
+  Product
+  User
+}
+
+fn context_type_enum_decoder() -> decode.Decoder(ContextTypeEnum) {
+  use context_type_enum <- decode.then(decode.string)
+  case context_type_enum {
+    "misc" -> decode.success(Misc)
+    "product" -> decode.success(Product)
+    "user" -> decode.success(User)
+    _ -> decode.failure(Misc, "ContextTypeEnum")
+  }
+}
+
+fn context_type_enum_encoder(context_type_enum) -> pog.Value {
+  case context_type_enum {
+    Misc -> "misc"
+    Product -> "product"
+    User -> "user"
+  }
+  |> pog.text
+}/// Corresponds to the Postgres `product_status` enum.
 ///
 /// > 🐿️ This type definition was generated automatically using v4.6.0 of the
 /// > [squirrel package](https://github.com/giacomocavalieri/squirrel).

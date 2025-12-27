@@ -1,3 +1,4 @@
+import auth_server/lib/file/types as file_types
 import auth_server/lib/file_handlers/file_handler
 import auth_server/lib/product/transform
 import auth_server/lib/user/types.{type User}
@@ -15,7 +16,7 @@ pub fn create_product(
   context ctx: web.Context,
 ) -> Result(Nil, String) {
   use product_request <- result.try(
-    transform.create_product_row_decoder(data)
+    transform.create_product_request_decoder(data)
     |> result.map_error(fn(errors) { string.inspect(errors) }),
   )
 
@@ -103,20 +104,35 @@ pub fn get_product_by_id(
 fn create_product_images_files(
   product_name: String,
   images: List(transform.CreateProductImageRequest),
-) {
+) -> Result(List(file_types.CreatedFile), String) {
   let valid_images =
-    list.filter(images, fn(img) { option.unwrap(img.filename, "") != "" })
+    list.filter_map(images, fn(img) {
+      let filename = option.unwrap(img.filename, "no_filename")
+      let filetype = option.unwrap(img.mimetype, "application/octet-stream")
+      case img.filename {
+        option.Some(name) if name != "" ->
+          Ok(file_types.File(
+            id: option.None,
+            data: img.data,
+            filename: product_name <> filename,
+            file_type: filetype,
+            context_type: sql.Product,
+          ))
+        _ -> Error(Nil)
+      }
+    })
 
   case valid_images {
     [] -> Ok([])
     _ -> {
       list.map(valid_images, fn(image) {
-        file_handler.create_file(
-          filename: product_name
-            <> option.unwrap(image.filename, "no_file_name"),
-          base64_encoded_file: image.data,
-          directory: "images/products",
-        )
+        use created_filename <- result.try(file_handler.create_file(image))
+
+        Ok(file_types.CreatedFile(
+          filename: created_filename,
+          file_type: image.file_type,
+          context_type: image.context_type,
+        ))
       })
       |> result.all()
     }
@@ -126,14 +142,19 @@ fn create_product_images_files(
 fn create_product_images_in_db(
   ctx: web.Context,
   product_id: Int,
-  filenames: List(String),
-) {
-  case filenames {
+  created_files: List(file_types.CreatedFile),
+) -> Result(List(file_types.CreatedFile), String) {
+  case created_files {
     [] -> Ok([])
     _ -> {
-      // Create all image records in database
+      let file_names = list.map(created_files, fn(file) { file.filename })
+      let file_types = list.map(created_files, fn(file) { file.file_type })
+      let file_contexts =
+        list.map(created_files, fn(file) { file.context_type })
+
+      // Create all file records in database
       use created_images <- result.try(
-        sql.create_images(ctx.db, filenames)
+        sql.create_files(ctx.db, file_names, file_types, file_contexts)
         |> result.map_error(fn(err) {
           "Failed to create images: " <> string.inspect(err)
         }),
@@ -148,7 +169,7 @@ fn create_product_images_in_db(
         }),
       )
 
-      Ok(filenames)
+      Ok(created_files)
     }
   }
 }
@@ -159,10 +180,11 @@ pub fn create_product_images(
   product_name product_name: String,
   images images: List(transform.CreateProductImageRequest),
   product_id product_id: Int,
-) -> Result(List(String), String) {
-  // Create the image files and get the generated filenames
-  use filenames <- result.try(create_product_images_files(product_name, images))
+) -> Result(List(file_types.CreatedFile), String) {
+  use created_files <- result.try(create_product_images_files(
+    product_name,
+    images,
+  ))
 
-  // Create database records with the actual filenames
-  create_product_images_in_db(ctx, product_id, filenames)
+  create_product_images_in_db(ctx, product_id, created_files)
 }
