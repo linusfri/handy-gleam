@@ -76,10 +76,26 @@ fn context_type_decoder() -> decode.Decoder(sql.ContextTypeEnum) {
 
 fn product_image_request_decoder() -> decode.Decoder(CreateProductImageRequest) {
   use kind_str <- decode.field("kind", decode.string)
-  use id <- decode.field("id", decode.optional(decode.int))
-  use data <- decode.field("data", decode.optional(decode.string))
-  use filename <- decode.field("filename", decode.optional(decode.string))
-  use mimetype <- decode.field("mimetype", decode.optional(decode.string))
+  use id <- decode.optional_field(
+    "id",
+    option.None,
+    decode.optional(decode.int),
+  )
+  use data <- decode.optional_field(
+    "data",
+    option.None,
+    decode.optional(decode.string),
+  )
+  use filename <- decode.optional_field(
+    "filename",
+    option.None,
+    decode.optional(decode.string),
+  )
+  use mimetype <- decode.optional_field(
+    "mimetype",
+    option.None,
+    decode.optional(decode.string),
+  )
 
   let kind = case kind_str {
     "new" -> New

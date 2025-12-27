@@ -101,6 +101,28 @@ pub fn get_product_by_id(
   }
 }
 
+/// Creates images if base64 string is provided
+pub fn create_product_images(
+  ctx ctx: web.Context,
+  product_name product_name: String,
+  images images: List(transform.CreateProductImageRequest),
+  product_id product_id: Int,
+) -> Result(List(file_types.CreatedFile), String) {
+  let #(existing_images, new_images) =
+    list.partition(images, fn(img) {
+      case img.kind {
+        transform.Existing -> True
+        transform.New -> False
+      }
+    })
+
+  // Link existing images to the product
+  use _ <- result.try(link_existing_images(ctx, product_id, existing_images))
+
+  // Create and link new images
+  create_new_images(ctx, product_name, product_id, new_images)
+}
+
 fn create_product_images_files(
   product_name: String,
   images: List(transform.CreateProductImageRequest),
@@ -139,11 +161,41 @@ fn create_product_images_files(
   }
 }
 
-fn create_product_images_in_db(
+fn link_existing_images(
   ctx: web.Context,
   product_id: Int,
-  created_files: List(file_types.CreatedFile),
+  images: List(transform.CreateProductImageRequest),
+) -> Result(Nil, String) {
+  let ids =
+    list.filter_map(images, fn(img) {
+      case img.id {
+        option.Some(id) -> Ok(id)
+        option.None -> Error(Nil)
+      }
+    })
+
+  case ids {
+    [] -> Ok(Nil)
+    _ ->
+      sql.create_product_images(ctx.db, product_id, ids)
+      |> result.map(fn(_) { Nil })
+      |> result.map_error(fn(err) {
+        "Failed to link existing images: " <> string.inspect(err)
+      })
+  }
+}
+
+fn create_new_images(
+  ctx: web.Context,
+  product_name: String,
+  product_id: Int,
+  images: List(transform.CreateProductImageRequest),
 ) -> Result(List(file_types.CreatedFile), String) {
+  use created_files <- result.try(create_product_images_files(
+    product_name,
+    images,
+  ))
+
   case created_files {
     [] -> Ok([])
     _ -> {
@@ -172,19 +224,4 @@ fn create_product_images_in_db(
       Ok(created_files)
     }
   }
-}
-
-/// Creates images if base64 string is provided
-pub fn create_product_images(
-  ctx ctx: web.Context,
-  product_name product_name: String,
-  images images: List(transform.CreateProductImageRequest),
-  product_id product_id: Int,
-) -> Result(List(file_types.CreatedFile), String) {
-  use created_files <- result.try(create_product_images_files(
-    product_name,
-    images,
-  ))
-
-  create_product_images_in_db(ctx, product_id, created_files)
 }

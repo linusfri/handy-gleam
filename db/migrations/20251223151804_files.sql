@@ -7,7 +7,8 @@ create table files (
   file_type varchar(50) not null,  -- e.g., "image/png"
   context_type context_type_enum not null,  -- Determines directory structure: user/, product/, or misc/
   deleted boolean default false,
-  created_at timestamp default current_timestamp
+  created_at timestamp default current_timestamp,
+  unique (filename, file_type, context_type)
 );
 
 -- migrate:down
