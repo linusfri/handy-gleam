@@ -45,7 +45,14 @@ pub fn handle_request(req: Request, ctx: web.Context) -> Response {
     ["images"], method -> {
       use req, user <- web.authenticated_middleware(req)
       case method {
-        Delete -> image_service.delete_image(req, ctx, user)
+        Get -> image_service.get_images(req, ctx, user)
+        _ -> wisp.method_not_allowed(allowed: [Delete])
+      }
+    }
+    ["images", image_id], method -> {
+      use req, user <- web.authenticated_middleware(req)
+      case method {
+        Delete -> image_service.delete_image(req, ctx, user, image_id)
         _ -> wisp.method_not_allowed(allowed: [Delete])
       }
     }

@@ -28,8 +28,8 @@ select
 from
   products
   inner join product_user_group on products.id = product_user_group.product_id
-  left join product_image on products.id = product_image.product_id
-  left join files on product_image.image_id = files.id
+  left join product_file on products.id = product_file.product_id
+  left join files on product_file.file_id = files.id
 where
   product_user_group.user_group_id = any($1)
 group by

@@ -4,6 +4,7 @@ import auth_server/lib/auth/oauth
 import auth_server/lib/auth/transform as auth_transform
 import auth_server/lib/user/types.{type User}
 import auth_server/lib/utils/api_client
+import auth_server/lib/utils/logger
 import gleam/http.{Post}
 import gleam/http/request
 import wisp.{type Request}
@@ -18,7 +19,10 @@ pub fn login(req: Request) {
         Ok(login_response) -> login_response
         Error(error_response) -> error_response
       }
-    Error(_) -> wisp.json_response("Invalid JSON body", 400)
+    Error(err) -> {
+      logger.log_error(err)
+      wisp.json_response("Invalid JSON body", 400)
+    }
   }
 }
 

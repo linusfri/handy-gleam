@@ -50,6 +50,7 @@ pub fn create_product(
       first_product.name,
       product_request.images,
       first_product.id,
+      user,
     ))
 
     use _ <- result.try(
@@ -131,6 +132,7 @@ fn create_product_images_tx(
   product_name: String,
   images: List(transform.CreateProductImageRequest),
   product_id: Int,
+  user: User,
 ) -> Result(List(file_types.CreatedFile), String) {
   let #(existing_images, new_images) =
     list.partition(images, fn(img) {
@@ -142,7 +144,7 @@ fn create_product_images_tx(
 
   use _ <- result.try(link_existing_images_tx(tx, product_id, existing_images))
 
-  create_new_images_tx(tx, product_name, product_id, new_images)
+  create_new_images_tx(tx, product_name, product_id, new_images, user)
 }
 
 fn create_product_images_files(
@@ -200,7 +202,7 @@ fn link_existing_images_tx(
   case ids {
     [] -> Ok(Nil)
     _ ->
-      sql.create_product_images(tx, product_id, ids)
+      sql.create_product_files(tx, product_id, ids)
       |> result.map(fn(_) { Nil })
       |> result.map_error(fn(err) {
         "product:link_existing_images:sql.create_product_images | "
@@ -214,6 +216,7 @@ fn create_new_images_tx(
   product_name: String,
   product_id: Int,
   images: List(transform.CreateProductImageRequest),
+  user: User,
 ) -> Result(List(file_types.CreatedFile), String) {
   use created_files <- result.try(create_product_images_files(
     product_name,
@@ -228,7 +231,6 @@ fn create_new_images_tx(
       let file_contexts =
         list.map(created_files, fn(file) { file.context_type })
 
-      // Create all file records in database
       use created_images <- result.try(
         sql.create_files(tx, file_names, file_types, file_contexts)
         |> result.map_error(fn(err) {
@@ -237,10 +239,19 @@ fn create_new_images_tx(
         }),
       )
 
-      // Link all images to the product
+      // Link all files to the product
       let image_ids = list.map(created_images.rows, fn(row) { row.id })
+
       use _ <- result.try(
-        sql.create_product_images(tx, product_id, image_ids)
+        sql.create_files_user_groups(tx, image_ids, user.groups)
+        |> result.map_error(fn(err) {
+          "product:create_new_images_tx:sql.create_files_user_groups | "
+          <> string.inspect(err)
+        }),
+      )
+
+      use _ <- result.try(
+        sql.create_product_files(tx, product_id, image_ids)
         |> result.map_error(fn(err) {
           "product:create_new_images_tx:sql.create_product_images | "
           <> string.inspect(err)

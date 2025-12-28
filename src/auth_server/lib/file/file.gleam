@@ -16,7 +16,7 @@ pub fn delete_file(
   use deleted_row <- result.try(
     pog.transaction(db, fn(tx) {
       use select_file_result <- result.try(
-        sql.select_file_by_id(tx, file_id)
+        sql.select_file_by_id(tx, file_id, user.groups)
         |> result.map_error(fn(err) {
           "file:delete_file:select_file_by_id | " <> string.inspect(err)
         }),
@@ -27,7 +27,7 @@ pub fn delete_file(
         [] -> Error("No image found with that ID")
       })
 
-      // Delete from DB (only if user has access to the product)
+      // Delete from DB (only if user has access to the file)
       use _ <- result.try(
         sql.delete_file_by_id(tx, file_id, user.groups)
         |> result.map_error(fn(err) {

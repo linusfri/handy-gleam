@@ -5,7 +5,6 @@ import auth_server/web
 import gleam/http
 import gleam/http/request
 import gleam/int
-import gleam/list
 import gleam/result
 import wisp
 
@@ -13,16 +12,11 @@ pub fn delete_image(
   req: request.Request(wisp.Connection),
   ctx: web.Context,
   user: User,
+  image_id_str: String,
 ) -> wisp.Response {
   use <- wisp.require_method(req, http.Delete)
-  let query_parameters = wisp.get_query(req)
 
   let delete_image_result = {
-    use image_id_str <- result.try(
-      list.key_find(query_parameters, "image_id")
-      |> result.replace_error("No image id provided"),
-    )
-
     use image_id <- result.try(
       int.parse(image_id_str)
       |> result.replace_error("Invalid image id"),
@@ -33,17 +27,25 @@ pub fn delete_image(
 
   case delete_image_result {
     Ok(_) -> wisp.json_response("Image deleted successfully", 200)
-    Error("No image id provided" as err) -> {
+    Error("Invalid image id" as err) -> {
       logger.log_error(err)
-      wisp.json_response("No image id provided", 400)
+      wisp.json_response("Invalid image id", 400)
     }
     Error("No image found with that ID" as err) -> {
       logger.log_error(err)
-      wisp.json_response(err, 400)
+      wisp.json_response(err, 404)
     }
     Error(err) -> {
       logger.log_error(err)
       wisp.json_response(err, 500)
     }
   }
+}
+
+pub fn get_images(
+  req: request.Request(wisp.Connection),
+  ctx: web.Context,
+  user: User,
+) {
+  wisp.json_response("images", 200)
 }

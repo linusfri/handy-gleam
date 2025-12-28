@@ -61,6 +61,63 @@ returning id, filename, file_type, context_type;"
   |> pog.execute(db)
 }
 
+/// A row you get from running the `create_files_user_groups` query
+/// defined in `./src/auth_server/sql/create_files_user_groups.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.6.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type CreateFilesUserGroupsRow {
+  CreateFilesUserGroupsRow(
+    id: Int,
+    file_id: Int,
+    user_group_id: String,
+    created_at: Option(Timestamp),
+  )
+}
+
+/// Runs the `create_files_user_groups` query
+/// defined in `./src/auth_server/sql/create_files_user_groups.sql`.
+///
+/// > 🐿️ This function was generated automatically using v4.6.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn create_files_user_groups(
+  db: pog.Connection,
+  arg_1: List(Int),
+  arg_2: List(String),
+) -> Result(pog.Returned(CreateFilesUserGroupsRow), pog.QueryError) {
+  let decoder = {
+    use id <- decode.field(0, decode.int)
+    use file_id <- decode.field(1, decode.int)
+    use user_group_id <- decode.field(2, decode.string)
+    use created_at <- decode.field(3, decode.optional(pog.timestamp_decoder()))
+    decode.success(CreateFilesUserGroupsRow(
+      id:,
+      file_id:,
+      user_group_id:,
+      created_at:,
+    ))
+  }
+
+  "insert into
+  file_user_group (file_id, user_group_id)
+select
+  *
+from
+  unnest(
+    $1::int[], -- file_ids
+    $2::varchar[] -- user_group_ids
+  )
+
+returning id, file_id, user_group_id, created_at;"
+  |> pog.query
+  |> pog.parameter(pog.array(fn(value) { pog.int(value) }, arg_1))
+  |> pog.parameter(pog.array(fn(value) { pog.text(value) }, arg_2))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
 /// A row you get from running the `create_product` query
 /// defined in `./src/auth_server/sql/create_product.sql`.
 ///
@@ -111,7 +168,8 @@ pub fn create_product(
     ))
   }
 
-  "insert into products (name, description, status, price, created_at, updated_at) values
+  "
+insert into products (name, description, status, price, created_at, updated_at) values
     ($1, $2, $3, $4, now(), now()) returning *;"
   |> pog.query
   |> pog.parameter(pog.text(arg_1))
@@ -122,47 +180,25 @@ pub fn create_product(
   |> pog.execute(db)
 }
 
-/// Runs the `create_product_images` query
-/// defined in `./src/auth_server/sql/create_product_images.sql`.
+/// Runs the `create_product_files` query
+/// defined in `./src/auth_server/sql/create_product_files.sql`.
 ///
 /// > 🐿️ This function was generated automatically using v4.6.0 of
 /// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
 ///
-pub fn create_product_images(
+pub fn create_product_files(
   db: pog.Connection,
   arg_1: Int,
   arg_2: List(Int),
 ) -> Result(pog.Returned(Nil), pog.QueryError) {
   let decoder = decode.map(decode.dynamic, fn(_) { Nil })
 
-  "insert into product_image (product_id, image_id, display_order)
-select $1, image_id, row_number() over () - 1
-from unnest($2::int[]) as image_id;"
+  "insert into product_file (product_id, file_id, display_order)
+select $1, file_id, row_number() over () - 1
+from unnest($2::int[]) as file_id;"
   |> pog.query
   |> pog.parameter(pog.int(arg_1))
   |> pog.parameter(pog.array(fn(value) { pog.int(value) }, arg_2))
-  |> pog.returning(decoder)
-  |> pog.execute(db)
-}
-
-/// Runs the `create_product_user_group` query
-/// defined in `./src/auth_server/sql/create_product_user_group.sql`.
-///
-/// > 🐿️ This function was generated automatically using v4.6.0 of
-/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
-///
-pub fn create_product_user_group(
-  db: pog.Connection,
-  arg_1: Int,
-  arg_2: String,
-) -> Result(pog.Returned(Nil), pog.QueryError) {
-  let decoder = decode.map(decode.dynamic, fn(_) { Nil })
-
-  "insert into product_user_group (product_id, user_group_id, created_at)
-values ($1, $2, now());"
-  |> pog.query
-  |> pog.parameter(pog.int(arg_1))
-  |> pog.parameter(pog.text(arg_2))
   |> pog.returning(decoder)
   |> pog.execute(db)
 }
@@ -191,7 +227,7 @@ cross join unnest($2::text[]) as g(user_group_id);"
   |> pog.execute(db)
 }
 
-/// name: delete_image_by_id
+/// name: delete_file_by_id
 /// Deletes a file only if it belongs to a product in user's groups
 ///
 /// > 🐿️ This function was generated automatically using v4.6.0 of
@@ -204,14 +240,14 @@ pub fn delete_file_by_id(
 ) -> Result(pog.Returned(Nil), pog.QueryError) {
   let decoder = decode.map(decode.dynamic, fn(_) { Nil })
 
-  "-- name: delete_image_by_id
+  "-- name: delete_file_by_id
 -- Deletes a file only if it belongs to a product in user's groups
 delete from files i
 where i.id = $1
 and exists (
-  select 1 from product_image pi
-  inner join product_user_group pug on pi.product_id = pug.product_id
-  where pi.image_id = i.id
+  select 1 from product_file pf
+  inner join product_user_group pug on pf.product_id = pug.product_id
+  where pf.file_id = i.id
   and pug.user_group_id = any($2)
 );"
   |> pog.query
@@ -263,13 +299,11 @@ pub type SelectFileByIdRow {
     filename: String,
     file_type: String,
     context_type: ContextTypeEnum,
-    deleted: Option(Bool),
-    created_at: Option(Timestamp),
   )
 }
 
-/// name: select_image_by_id
-/// Get file details by ID
+/// name: select_file_by_id
+/// Get file details by ID with user_group permission check
 ///
 /// > 🐿️ This function was generated automatically using v4.6.0 of
 /// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
@@ -277,31 +311,82 @@ pub type SelectFileByIdRow {
 pub fn select_file_by_id(
   db: pog.Connection,
   arg_1: Int,
+  arg_2: List(String),
 ) -> Result(pog.Returned(SelectFileByIdRow), pog.QueryError) {
   let decoder = {
     use id <- decode.field(0, decode.int)
     use filename <- decode.field(1, decode.string)
     use file_type <- decode.field(2, decode.string)
     use context_type <- decode.field(3, context_type_enum_decoder())
-    use deleted <- decode.field(4, decode.optional(decode.bool))
-    use created_at <- decode.field(5, decode.optional(pog.timestamp_decoder()))
-    decode.success(SelectFileByIdRow(
-      id:,
-      filename:,
-      file_type:,
-      context_type:,
-      deleted:,
-      created_at:,
-    ))
+    decode.success(SelectFileByIdRow(id:, filename:, file_type:, context_type:))
   }
 
-  "-- name: select_image_by_id
--- Get file details by ID
-select *
-from files
-where id = $1;"
+  "-- name: select_file_by_id
+-- Get file details by ID with user_group permission check
+select
+    distinct files.id,
+    files.filename,
+    files.file_type,
+    files.context_type
+from
+    files
+    inner join file_user_group on files.id = file_user_group.file_id
+where
+    files.id = $1
+    and file_user_group.user_group_id = any($2)
+    and files.deleted = false;"
   |> pog.query
   |> pog.parameter(pog.int(arg_1))
+  |> pog.parameter(pog.array(fn(value) { pog.text(value) }, arg_2))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
+/// A row you get from running the `select_files` query
+/// defined in `./src/auth_server/sql/select_files.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.6.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type SelectFilesRow {
+  SelectFilesRow(
+    id: Int,
+    filename: String,
+    file_type: String,
+    context_type: ContextTypeEnum,
+  )
+}
+
+/// Runs the `select_files` query
+/// defined in `./src/auth_server/sql/select_files.sql`.
+///
+/// > 🐿️ This function was generated automatically using v4.6.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn select_files(
+  db: pog.Connection,
+  arg_1: List(String),
+) -> Result(pog.Returned(SelectFilesRow), pog.QueryError) {
+  let decoder = {
+    use id <- decode.field(0, decode.int)
+    use filename <- decode.field(1, decode.string)
+    use file_type <- decode.field(2, decode.string)
+    use context_type <- decode.field(3, context_type_enum_decoder())
+    decode.success(SelectFilesRow(id:, filename:, file_type:, context_type:))
+  }
+
+  "select
+    files.id,
+    files.filename,
+    files.file_type,
+    files.context_type
+from
+    files
+inner join file_user_group on files.id = file_user_group.file_id
+where
+    file_user_group.user_group_id = any($1);"
+  |> pog.query
+  |> pog.parameter(pog.array(fn(value) { pog.text(value) }, arg_1))
   |> pog.returning(decoder)
   |> pog.execute(db)
 }
@@ -370,8 +455,8 @@ select
   COALESCE(json_agg(json_build_object('id', files.id, 'filename', files.filename, 'file_type', files.file_type, 'context_type', files.context_type)) filter (where files.id is not null), '[]'::json) as images
 from products
 inner join product_user_group on products.id = product_user_group.product_id
-left join product_image on products.id = product_image.product_id
-left join files on product_image.image_id = files.id
+left join product_file on products.id = product_file.product_id
+left join files on product_file.file_id = files.id
 where products.id = $1
 and product_user_group.user_group_id = any($2)
 group by products.id, products.name, products.description, products.status, products.price, products.created_at, products.updated_at
@@ -462,8 +547,8 @@ select
 from
   products
   inner join product_user_group on products.id = product_user_group.product_id
-  left join product_image on products.id = product_image.product_id
-  left join files on product_image.image_id = files.id
+  left join product_file on products.id = product_file.product_id
+  left join files on product_file.file_id = files.id
 where
   product_user_group.user_group_id = any($1)
 group by
