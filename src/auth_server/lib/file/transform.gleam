@@ -1,15 +1,59 @@
+import auth_server/lib/file/types.{
+  type ContextType, type File, type FileType, File,
+}
+import auth_server/lib/file_system/file_system
 import auth_server/sql
 import gleam/dynamic/decode
 import gleam/json
+import gleam/option
 
-pub type FileType =
-  sql.FileTypeEnum
+/// Converts SelectFileByIdRow to File
+/// REFACTOR TO BE GENERIC
+pub fn select_file_by_id_row_to_file(row: sql.SelectFileByIdRow) {
+  File(
+    id: option.Some(row.id),
+    data: option.None,
+    filename: row.filename,
+    file_type: row.file_type,
+    context_type: row.context_type,
+    uri: option.Some(file_system.file_url(
+      row.filename,
+      row.context_type,
+      row.file_type,
+    )),
+  )
+}
+
+/// Converts SelectFilesRow to File
+/// REFACTOR TO BE GENERIC
+pub fn select_files_rows_to_files(row: sql.SelectFilesRow) {
+  File(
+    id: option.Some(row.id),
+    data: option.None,
+    filename: row.filename,
+    file_type: row.file_type,
+    context_type: row.context_type,
+    uri: option.Some(file_system.file_url(
+      row.filename,
+      row.context_type,
+      row.file_type,
+    )),
+  )
+}
 
 pub fn file_type_enum_to_json(file_type_enum: FileType) -> json.Json {
   case file_type_enum {
     sql.Video -> json.string("video")
     sql.Image -> json.string("image")
     sql.Unknown -> json.string("unknown")
+  }
+}
+
+pub fn context_type_enum_to_json(context_type_enum: ContextType) -> json.Json {
+  case context_type_enum {
+    sql.Misc -> json.string("misc")
+    sql.Product -> json.string("product")
+    sql.User -> json.string("user")
   }
 }
 
@@ -20,4 +64,25 @@ pub fn file_type_decoder() -> decode.Decoder(FileType) {
     "video" -> decode.success(sql.Video)
     _ -> decode.failure(sql.Unknown, expected: "FileType")
   }
+}
+
+pub fn file_to_json(file: File) -> json.Json {
+  let File(id:, data:, filename:, file_type:, context_type:, uri:) = file
+  json.object([
+    #("id", case id {
+      option.None -> json.null()
+      option.Some(value) -> json.int(value)
+    }),
+    #("data", case data {
+      option.None -> json.null()
+      option.Some(value) -> json.string(value)
+    }),
+    #("filename", json.string(filename)),
+    #("uri", case uri {
+      option.Some(uri) -> json.string(uri)
+      option.None -> json.null()
+    }),
+    #("file_type", file_type_enum_to_json(file_type)),
+    #("context_type", context_type_enum_to_json(context_type)),
+  ])
 }

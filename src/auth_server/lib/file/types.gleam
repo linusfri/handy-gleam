@@ -1,4 +1,3 @@
-import auth_server/lib/file/transform.{type FileType}
 import auth_server/sql
 import gleam/option.{type Option}
 
@@ -9,8 +8,15 @@ pub type File {
     filename: String,
     file_type: FileType,
     context_type: sql.ContextTypeEnum,
+    uri: Option(String),
   )
 }
+
+pub type FileType =
+  sql.FileTypeEnum
+
+pub type ContextType =
+  sql.ContextTypeEnum
 
 pub type CreatedFile {
   CreatedFile(

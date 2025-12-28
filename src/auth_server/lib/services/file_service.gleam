@@ -1,11 +1,15 @@
 import auth_server/lib/file/file
+import auth_server/lib/file/transform as file_transform
 import auth_server/lib/user/types.{type User}
 import auth_server/lib/utils/logger
 import auth_server/web
 import gleam/http
 import gleam/http/request
 import gleam/int
+import gleam/json
+import gleam/list
 import gleam/result
+import gleam/string
 import wisp
 
 pub fn delete_file(
@@ -47,31 +51,18 @@ pub fn get_files(
   ctx: web.Context,
   user: User,
 ) {
-  wisp.json_response("files", 200)
-  // use <- wisp.require_method(req, http.Get)
-
-  // let query_parameters = wisp.get_query(req)
-
-  // let file_types =
-  //   query_parameters
-  //   |> list.filter_map(fn(param) {
-  //     case param {
-  //       #("file_type", value) -> Ok(value)
-  //       _ -> Error(Nil)
-  //     }
-  //   })
-
-  // case file.get_files(ctx.db, file_types, user) {
-  //   Ok(files) -> {
-  //     files
-  //     |> list.map(file.file_to_json)
-  //     |> json.array(of: fn(json_file) { json_file })
-  //     |> json.to_string
-  //     |> wisp.json_response(200)
-  //   }
-  //   Error(err) -> {
-  //     logger.log_error(err)
-  //     wisp.json_response(err, 500)
-  //   }
-  // }
+  case file.get_files(db: ctx.db, file_types: [], user: user) {
+    Ok(files) -> {
+      files
+      |> list.map(file_transform.select_files_rows_to_files)
+      |> list.map(file_transform.file_to_json)
+      |> json.array(of: fn(json_file) { json_file })
+      |> json.to_string
+      |> wisp.json_response(200)
+    }
+    Error(err) -> {
+      logger.log_error(err)
+      wisp.json_response(string.inspect(err), 500)
+    }
+  }
 }

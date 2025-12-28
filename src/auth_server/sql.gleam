@@ -5,6 +5,7 @@
 ////
 
 import gleam/dynamic/decode
+import gleam/json
 import gleam/option.{type Option}
 import gleam/time/timestamp.{type Timestamp}
 import pog
@@ -53,12 +54,11 @@ select * from unnest(
 returning id, filename, file_type, context_type;"
   |> pog.query
   |> pog.parameter(pog.array(fn(value) { pog.text(value) }, arg_1))
-  |> pog.parameter(
-    pog.array(fn(value) { file_type_enum_encoder(value) }, arg_2),
-  )
-  |> pog.parameter(
-    pog.array(fn(value) { context_type_enum_encoder(value) }, arg_3),
-  )
+  |> pog.parameter(pog.array(fn(value) { file_type_enum_encoder(value) }, arg_2))
+  |> pog.parameter(pog.array(
+    fn(value) { context_type_enum_encoder(value) },
+    arg_3,
+  ))
   |> pog.returning(decoder)
   |> pog.execute(db)
 }
@@ -599,7 +599,9 @@ fn context_type_enum_encoder(context_type_enum) -> pog.Value {
     User -> "user"
   }
   |> pog.text
-}/// Corresponds to the Postgres `file_type_enum` enum.
+}
+
+/// Corresponds to the Postgres `file_type_enum` enum.
 ///
 /// > 🐿️ This type definition was generated automatically using v4.6.0 of the
 /// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
@@ -627,7 +629,9 @@ fn file_type_enum_encoder(file_type_enum) -> pog.Value {
     Image -> "image"
   }
   |> pog.text
-}/// Corresponds to the Postgres `product_status` enum.
+}
+
+/// Corresponds to the Postgres `product_status` enum.
 ///
 /// > 🐿️ This type definition was generated automatically using v4.6.0 of the
 /// > [squirrel package](https://github.com/giacomocavalieri/squirrel).

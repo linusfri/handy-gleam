@@ -1,6 +1,6 @@
 import auth_server/lib/file/transform as file_transform
-import auth_server/lib/file/types.{type File, File}
-import auth_server/lib/file_handlers/file_handler
+import auth_server/lib/file/types.{type File, type FileType, File}
+import auth_server/lib/file_system/file_system
 import auth_server/sql.{type ProductStatus, Available, Sold}
 import gleam/dynamic.{type Dynamic}
 import gleam/dynamic/decode
@@ -36,7 +36,7 @@ pub type CreateProductImageRequest {
     id: Option(Int),
     data: Option(String),
     filename: Option(String),
-    mimetype: Option(file_transform.FileType),
+    mimetype: Option(FileType),
   )
 }
 
@@ -62,6 +62,7 @@ fn product_image_response_decoder() -> decode.Decoder(File) {
     filename:,
     context_type:,
     file_type:,
+    uri: option.Some(file_system.file_url(filename, context_type, file_type)),
   ))
 }
 
@@ -219,7 +220,14 @@ pub fn product_to_json(product_to_json: sql.SelectProductsRow) -> json.Json {
       json.array(images, fn(image) {
         json.object([
           #("id", json.nullable(image.id, of: json.int)),
-          #("url", json.string(file_handler.file_url(image))),
+          #("filename", json.string(image.filename)),
+          #("file_type", file_transform.file_type_enum_to_json(image.file_type)),
+          #(
+            "context_type",
+            file_transform.context_type_enum_to_json(image.context_type),
+          ),
+          #("uri", json.nullable(image.uri, of: json.string)),
+          #("data", json.nullable(image.data, of: json.string)),
         ])
       }),
     ),

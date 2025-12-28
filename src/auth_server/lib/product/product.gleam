@@ -1,5 +1,5 @@
 import auth_server/lib/file/types as file_types
-import auth_server/lib/file_handlers/file_handler
+import auth_server/lib/file_system/file_system
 import auth_server/lib/product/transform
 import auth_server/lib/user/types.{type User}
 import auth_server/lib/utils/logger
@@ -163,6 +163,11 @@ fn create_product_images_files(
             filename: product_name <> filename,
             file_type: filetype,
             context_type: sql.Product,
+            uri: option.Some(file_system.file_url(
+              filename,
+              sql.Product,
+              filetype,
+            )),
           ))
         err ->
           Error("product:create_product_images_files | " <> string.inspect(err))
@@ -173,7 +178,7 @@ fn create_product_images_files(
     [] -> Ok([])
     _ -> {
       list.map(valid_images, fn(image) {
-        use created_filename <- result.try(file_handler.create_file(image))
+        use created_filename <- result.try(file_system.create_file(image))
 
         Ok(file_types.CreatedFile(
           filename: created_filename,

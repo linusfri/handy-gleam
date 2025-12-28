@@ -1,8 +1,7 @@
-import auth_server/lib/file/types as file_types
-import auth_server/lib/file_handlers/file_handler
+import auth_server/lib/file/transform as file_transform
+import auth_server/lib/file_system/file_system
 import auth_server/lib/user/types.{type User}
 import auth_server/sql
-import gleam/option
 import gleam/result
 import gleam/string
 import pog
@@ -42,28 +41,26 @@ pub fn delete_file(
     }),
   )
 
-  let file = select_file_by_id_row_to_file(deleted_row)
+  let file = file_transform.select_file_by_id_row_to_file(deleted_row)
 
   // Delete from disk
   use _ <- result.try(
-    file_handler.delete_file(file)
+    file_system.delete_file(file)
     |> result.map_error(fn(err) { "file:filehandler:delete_file " <> err }),
   )
 
   Ok(Nil)
 }
 
-pub fn get_files(db: pog.Connection, file_types: List(String), user: User) {
-  "files"
-}
-
-/// Converts SelectFileByIdRow to File
-pub fn select_file_by_id_row_to_file(row: sql.SelectFileByIdRow) {
-  file_types.File(
-    id: option.Some(row.id),
-    data: option.None,
-    filename: row.filename,
-    file_type: row.file_type,
-    context_type: row.context_type,
+pub fn get_files(
+  db db: pog.Connection,
+  file_types file_types: List(String),
+  user user: User,
+) {
+  use get_files_result <- result.try(
+    pog.transaction(db, fn(tx) { sql.select_files(tx, user.groups) })
+    |> result.map_error(fn(err) { "file:get_files | " <> string.inspect(err) }),
   )
+
+  Ok(get_files_result.rows)
 }
