@@ -1,5 +1,6 @@
 import auth_server/lib/file/file
 import auth_server/lib/user/types.{type User}
+import auth_server/lib/utils/logger
 import auth_server/web
 import gleam/http
 import gleam/http/request
@@ -32,9 +33,17 @@ pub fn delete_image(
 
   case delete_image_result {
     Ok(_) -> wisp.json_response("Image deleted successfully", 200)
-    Error("No image id provided") ->
+    Error("No image id provided" as err) -> {
+      logger.log_error(err)
       wisp.json_response("No image id provided", 400)
-    Error("No image found with that ID" as err) -> wisp.json_response(err, 400)
-    Error(err) -> wisp.json_response(err, 500)
+    }
+    Error("No image found with that ID" as err) -> {
+      logger.log_error(err)
+      wisp.json_response(err, 400)
+    }
+    Error(err) -> {
+      logger.log_error(err)
+      wisp.json_response(err, 500)
+    }
   }
 }

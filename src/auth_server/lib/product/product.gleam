@@ -76,8 +76,7 @@ pub fn delete_product(
   use _ <- result.try(
     sql.delete_product(ctx.db, product_id, user.groups)
     |> result.map_error(fn(err) {
-      logger.log_error_with_context("delete_product:sql.delete_product", err)
-      "Failed to delete product: " <> string.inspect(err)
+      "delete_product:sql.delete_product | " <> string.inspect(err)
     }),
   )
 
@@ -92,11 +91,8 @@ pub fn get_product_by_id(
   use product_result <- result.try(
     sql.select_product_by_id(ctx.db, product_id, user.groups)
     |> result.map_error(fn(err) {
-      logger.log_error_with_context(
-        "get_product_by_id:sql.select_product_by_id",
-        err,
-      )
-      "Failed to get product: " <> string.inspect(err)
+      "product:get_product_by_id:sql.select_product_by_id | "
+      <> string.inspect(err)
     }),
   )
 
@@ -113,7 +109,20 @@ pub fn get_product_by_id(
         created_at: product.created_at,
         updated_at: product.updated_at,
       ))
-    [] -> Error("Product not found or access denied")
+    [] ->
+      Error("product:get_product_by_id | Product not found or access denied")
+  }
+}
+
+pub fn get_products(
+  ctx: web.Context,
+  user: User,
+) -> Result(List(SelectProductsRow), String) {
+  case sql.select_products(ctx.db, user.groups) {
+    Ok(products) -> {
+      Ok(products.rows)
+    }
+    Error(error) -> Error("product:get_products | " <> string.inspect(error))
   }
 }
 
@@ -153,7 +162,8 @@ fn create_product_images_files(
             file_type: filetype,
             context_type: sql.Product,
           ))
-        _ -> Error(Nil)
+        err ->
+          Error("product:create_product_images_files | " <> string.inspect(err))
       }
     })
 
@@ -193,7 +203,8 @@ fn link_existing_images_tx(
       sql.create_product_images(tx, product_id, ids)
       |> result.map(fn(_) { Nil })
       |> result.map_error(fn(err) {
-        "Failed to link existing images: " <> string.inspect(err)
+        "product:link_existing_images:sql.create_product_images | "
+        <> string.inspect(err)
       })
   }
 }
@@ -221,7 +232,8 @@ fn create_new_images_tx(
       use created_images <- result.try(
         sql.create_files(tx, file_names, file_types, file_contexts)
         |> result.map_error(fn(err) {
-          "Failed to create images: " <> string.inspect(err)
+          "product:create_new_images_tx:sql.create_files | "
+          <> string.inspect(err)
         }),
       )
 
@@ -230,7 +242,8 @@ fn create_new_images_tx(
       use _ <- result.try(
         sql.create_product_images(tx, product_id, image_ids)
         |> result.map_error(fn(err) {
-          "Failed to link product images: " <> string.inspect(err)
+          "product:create_new_images_tx:sql.create_product_images | "
+          <> string.inspect(err)
         }),
       )
 

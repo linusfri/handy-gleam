@@ -1,6 +1,7 @@
 import auth_server/config.{config}
 import auth_server/lib/user/types.{type User}
 import auth_server/lib/user/user
+import auth_server/lib/utils/logger
 import pog
 import wisp
 
@@ -32,6 +33,9 @@ pub fn authenticated_middleware(
 ) -> wisp.Response {
   case user.get_session_user(req) {
     Ok(user) -> handle_request(req, user)
-    Error(wisp_error) -> wisp_error
+    Error(wisp_error) -> {
+      logger.log_error(wisp_error)
+      wisp_error
+    }
   }
 }

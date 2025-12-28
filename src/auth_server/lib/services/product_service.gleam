@@ -1,7 +1,7 @@
 import auth_server/lib/product/product
-import auth_server/lib/product/transform.{product_to_json}
+import auth_server/lib/product/transform
 import auth_server/lib/user/types.{type User}
-import auth_server/sql
+import auth_server/lib/utils/logger
 import auth_server/web
 import gleam/http
 import gleam/http/request
@@ -13,16 +13,18 @@ import gleam/string
 import wisp
 
 pub fn get_products(ctx: web.Context, user: User) {
-  case sql.select_products(ctx.db, user.groups) {
+  case product.get_products(ctx, user) {
     Ok(products) -> {
-      let json_products =
-        products.rows
-        |> list.map(product_to_json)
-        |> json.array(of: fn(x) { x })
-
-      wisp.json_response(json.to_string(json_products), 200)
+      products
+      |> list.map(transform.product_to_json)
+      |> json.array(of: fn(json_product) { json_product })
+      |> json.to_string
+      |> wisp.json_response(200)
     }
-    Error(error) -> wisp.json_response(string.inspect(error), 500)
+    Error(err) -> {
+      logger.log_error(err)
+      wisp.json_response(string.inspect(err), 500)
+    }
   }
 }
 
@@ -37,6 +39,7 @@ pub fn create_product(
   case product.create_product(data: json_body, context: ctx, user: user) {
     Ok(_) -> wisp.json_response("Product created", 201)
     Error(err) -> {
+      logger.log_error(err)
       wisp.json_response(err, 500)
     }
   }
@@ -62,7 +65,10 @@ pub fn delete_product(
   case delete_product_result {
     Ok(_) -> wisp.json_response("Product deleted successfully", 200)
     Error("Invalid product id") -> wisp.json_response("Invalid product id", 400)
-    Error(err) -> wisp.json_response(err, 500)
+    Error(err) -> {
+      logger.log_error(err)
+      wisp.json_response(err, 500)
+    }
   }
 }
 
@@ -84,13 +90,23 @@ pub fn get_product(
   }
 
   case get_product_result {
-    Ok(product_row) -> {
-      let product_json = product_to_json(product_row)
-      wisp.json_response(json.to_string(product_json), 200)
+    Ok(product) -> {
+      wisp.json_response(
+        json.to_string(transform.product_to_json(product)),
+        200,
+      )
     }
-    Error("Invalid product id") -> wisp.json_response("Invalid product id", 400)
-    Error("Product not found or access denied") ->
+    Error("Invalid product id" as err) -> {
+      logger.log_error(err)
+      wisp.json_response(err, 400)
+    }
+    Error("Product not found or access denied" as err) -> {
+      logger.log_error(err)
       wisp.json_response("Product not found or access denied", 404)
-    Error(err) -> wisp.json_response(err, 500)
+    }
+    Error(err) -> {
+      logger.log_error(err)
+      wisp.json_response(err, 500)
+    }
   }
 }
