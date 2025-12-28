@@ -161,7 +161,7 @@ pub fn create_product_request_decoder(product_data_create: Dynamic) {
 }
 
 pub fn product_decoder(product_data: Dynamic) {
-  let products_row_decoder = {
+  let product_decoder = {
     use id <- decode.field("id", decode.int)
     use name <- decode.field("name", decode.string)
     use description <- decode.field(
@@ -194,7 +194,7 @@ pub fn product_decoder(product_data: Dynamic) {
     ))
   }
 
-  decode.run(product_data, products_row_decoder)
+  decode.run(product_data, product_decoder)
 }
 
 pub fn product_to_json(product_to_json: sql.SelectProductsRow) -> json.Json {
