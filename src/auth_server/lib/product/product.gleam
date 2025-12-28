@@ -154,7 +154,7 @@ fn create_product_images_files(
   let valid_images =
     list.filter_map(images, fn(image) {
       let filename = option.unwrap(image.filename, "no_filename")
-      let filetype = option.unwrap(image.mimetype, "application/octet-stream")
+      let filetype = option.unwrap(image.mimetype, sql.Unknown)
       case image.filename {
         option.Some(name) if name != "" ->
           Ok(file_types.File(

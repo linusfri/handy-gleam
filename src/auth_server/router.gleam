@@ -1,5 +1,5 @@
 import auth_server/lib/auth/auth
-import auth_server/lib/services/image_service
+import auth_server/lib/services/file_service
 import auth_server/lib/services/product_service
 import auth_server/lib/user/user
 import auth_server/web
@@ -42,17 +42,17 @@ pub fn handle_request(req: Request, ctx: web.Context) -> Response {
         _ -> wisp.method_not_allowed(allowed: [Get, Delete])
       }
     }
-    ["images"], method -> {
+    ["files"], method -> {
       use req, user <- web.authenticated_middleware(req)
       case method {
-        Get -> image_service.get_images(req, ctx, user)
+        Get -> file_service.get_files(req, ctx, user)
         _ -> wisp.method_not_allowed(allowed: [Delete])
       }
     }
-    ["images", image_id], method -> {
+    ["files", image_id], method -> {
       use req, user <- web.authenticated_middleware(req)
       case method {
-        Delete -> image_service.delete_image(req, ctx, user, image_id)
+        Delete -> file_service.delete_file(req, ctx, user, image_id)
         _ -> wisp.method_not_allowed(allowed: [Delete])
       }
     }

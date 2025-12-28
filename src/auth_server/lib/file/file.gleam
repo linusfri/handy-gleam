@@ -53,6 +53,10 @@ pub fn delete_file(
   Ok(Nil)
 }
 
+pub fn get_files(db: pog.Connection, file_types: List(String), user: User) {
+  "files"
+}
+
 /// Converts SelectFileByIdRow to File
 pub fn select_file_by_id_row_to_file(row: sql.SelectFileByIdRow) {
   file_types.File(

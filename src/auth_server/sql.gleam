@@ -19,7 +19,7 @@ pub type CreateFilesRow {
   CreateFilesRow(
     id: Int,
     filename: String,
-    file_type: String,
+    file_type: FileTypeEnum,
     context_type: ContextTypeEnum,
   )
 }
@@ -33,13 +33,13 @@ pub type CreateFilesRow {
 pub fn create_files(
   db: pog.Connection,
   arg_1: List(String),
-  arg_2: List(String),
+  arg_2: List(FileTypeEnum),
   arg_3: List(ContextTypeEnum),
 ) -> Result(pog.Returned(CreateFilesRow), pog.QueryError) {
   let decoder = {
     use id <- decode.field(0, decode.int)
     use filename <- decode.field(1, decode.string)
-    use file_type <- decode.field(2, decode.string)
+    use file_type <- decode.field(2, file_type_enum_decoder())
     use context_type <- decode.field(3, context_type_enum_decoder())
     decode.success(CreateFilesRow(id:, filename:, file_type:, context_type:))
   }
@@ -47,13 +47,15 @@ pub fn create_files(
   "insert into files (filename, file_type, context_type)
 select * from unnest(
   $1::text[],              -- filenames
-  $2::text[],              -- file_types (MIME types)
+  $2::file_type_enum[],    -- file_types (MIME types)
   $3::context_type_enum[]  -- context_types context_type_enum 
 )
 returning id, filename, file_type, context_type;"
   |> pog.query
   |> pog.parameter(pog.array(fn(value) { pog.text(value) }, arg_1))
-  |> pog.parameter(pog.array(fn(value) { pog.text(value) }, arg_2))
+  |> pog.parameter(
+    pog.array(fn(value) { file_type_enum_encoder(value) }, arg_2),
+  )
   |> pog.parameter(
     pog.array(fn(value) { context_type_enum_encoder(value) }, arg_3),
   )
@@ -106,7 +108,7 @@ select
   *
 from
   unnest(
-    $1::int[], -- file_ids
+    $1::int[],    -- file_ids
     $2::varchar[] -- user_group_ids
   )
 
@@ -297,7 +299,7 @@ pub type SelectFileByIdRow {
   SelectFileByIdRow(
     id: Int,
     filename: String,
-    file_type: String,
+    file_type: FileTypeEnum,
     context_type: ContextTypeEnum,
   )
 }
@@ -316,7 +318,7 @@ pub fn select_file_by_id(
   let decoder = {
     use id <- decode.field(0, decode.int)
     use filename <- decode.field(1, decode.string)
-    use file_type <- decode.field(2, decode.string)
+    use file_type <- decode.field(2, file_type_enum_decoder())
     use context_type <- decode.field(3, context_type_enum_decoder())
     decode.success(SelectFileByIdRow(id:, filename:, file_type:, context_type:))
   }
@@ -352,7 +354,7 @@ pub type SelectFilesRow {
   SelectFilesRow(
     id: Int,
     filename: String,
-    file_type: String,
+    file_type: FileTypeEnum,
     context_type: ContextTypeEnum,
   )
 }
@@ -370,7 +372,7 @@ pub fn select_files(
   let decoder = {
     use id <- decode.field(0, decode.int)
     use filename <- decode.field(1, decode.string)
-    use file_type <- decode.field(2, decode.string)
+    use file_type <- decode.field(2, file_type_enum_decoder())
     use context_type <- decode.field(3, context_type_enum_decoder())
     decode.success(SelectFilesRow(id:, filename:, file_type:, context_type:))
   }
@@ -595,6 +597,34 @@ fn context_type_enum_encoder(context_type_enum) -> pog.Value {
     Misc -> "misc"
     Product -> "product"
     User -> "user"
+  }
+  |> pog.text
+}/// Corresponds to the Postgres `file_type_enum` enum.
+///
+/// > 🐿️ This type definition was generated automatically using v4.6.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type FileTypeEnum {
+  Unknown
+  Video
+  Image
+}
+
+fn file_type_enum_decoder() -> decode.Decoder(FileTypeEnum) {
+  use file_type_enum <- decode.then(decode.string)
+  case file_type_enum {
+    "unknown" -> decode.success(Unknown)
+    "video" -> decode.success(Video)
+    "image" -> decode.success(Image)
+    _ -> decode.failure(Unknown, "FileTypeEnum")
+  }
+}
+
+fn file_type_enum_encoder(file_type_enum) -> pog.Value {
+  case file_type_enum {
+    Unknown -> "unknown"
+    Video -> "video"
+    Image -> "image"
   }
   |> pog.text
 }/// Corresponds to the Postgres `product_status` enum.

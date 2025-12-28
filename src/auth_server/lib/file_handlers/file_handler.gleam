@@ -62,7 +62,11 @@ pub fn create_file(file: File) {
       sql.Misc -> "misc"
     }
     <> "/"
-    <> file.file_type
+    <> case file.file_type {
+      sql.Image -> "image"
+      sql.Video -> "video"
+      sql.Unknown -> "unknown"
+    }
   let upload_path = config().static_directory <> "/" <> directory
 
   case file.data {
@@ -94,7 +98,11 @@ pub fn file_url(file: File) -> String {
   <> "/"
   <> context_dir
   <> "/"
-  <> file_type
+  <> case file_type {
+    sql.Image -> "image"
+    sql.Video -> "video"
+    sql.Unknown -> "unknown"
+  }
   <> "/"
   <> file.filename
 }

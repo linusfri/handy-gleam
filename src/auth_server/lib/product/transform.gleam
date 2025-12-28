@@ -1,3 +1,4 @@
+import auth_server/lib/file/transform as file_transform
 import auth_server/lib/file/types.{type File, File}
 import auth_server/lib/file_handlers/file_handler
 import auth_server/sql.{type ProductStatus, Available, Sold}
@@ -35,7 +36,7 @@ pub type CreateProductImageRequest {
     id: Option(Int),
     data: Option(String),
     filename: Option(String),
-    mimetype: Option(String),
+    mimetype: Option(file_transform.FileType),
   )
 }
 
@@ -52,7 +53,7 @@ pub type CreateProductRequest {
 fn product_image_response_decoder() -> decode.Decoder(File) {
   use id <- decode.field("id", decode.int)
   use filename <- decode.field("filename", decode.string)
-  use file_type <- decode.field("file_type", decode.string)
+  use file_type <- decode.field("file_type", file_transform.file_type_decoder())
   use context_type <- decode.field("context_type", context_type_decoder())
 
   decode.success(File(
@@ -94,7 +95,7 @@ fn product_image_request_decoder() -> decode.Decoder(CreateProductImageRequest) 
   use mimetype <- decode.optional_field(
     "mimetype",
     option.None,
-    decode.optional(decode.string),
+    decode.optional(file_transform.file_type_decoder()),
   )
 
   let kind = case kind_str {
