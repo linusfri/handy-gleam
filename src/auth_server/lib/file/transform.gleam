@@ -1,5 +1,6 @@
 import auth_server/lib/file/types.{
-  type ContextType, type File, type FileType, File,
+  type ContextType, type File, type FileType, type FileUploadRequest, File,
+  FileUploadRequest,
 }
 import auth_server/lib/file_system/file_system
 import auth_server/sql
@@ -85,4 +86,22 @@ pub fn file_to_json(file: File) -> json.Json {
     #("file_type", file_type_enum_to_json(file_type)),
     #("context_type", context_type_enum_to_json(context_type)),
   ])
+}
+
+pub fn file_upload_request_to_json(
+  file_upload_request: FileUploadRequest,
+) -> json.Json {
+  let FileUploadRequest(data:, filename:, mimetype:) = file_upload_request
+  json.object([
+    #("data", json.string(data)),
+    #("filename", json.string(filename)),
+    #("mimetype", json.string(mimetype)),
+  ])
+}
+
+pub fn file_upload_request_decoder() -> decode.Decoder(FileUploadRequest) {
+  use data <- decode.field("data", decode.string)
+  use filename <- decode.field("filename", decode.string)
+  use mimetype <- decode.field("mimetype", decode.string)
+  decode.success(FileUploadRequest(data:, filename:, mimetype:))
 }

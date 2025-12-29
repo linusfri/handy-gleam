@@ -30,8 +30,8 @@ pub type Product {
 }
 
 /// Could be something that only contains kind and id. Or it could contain kind and all of the other keys except id.
-pub type CreateProductImageRequest {
-  CreateProductImageRequest(
+pub type CreateProductFileRequest {
+  CreateProductFileRequest(
     kind: State,
     id: Option(Int),
     data: Option(String),
@@ -46,7 +46,7 @@ pub type CreateProductRequest {
     description: Option(String),
     status: ProductStatus,
     price: Float,
-    images: List(CreateProductImageRequest),
+    images: List(CreateProductFileRequest),
   )
 }
 
@@ -76,7 +76,7 @@ fn context_type_decoder() -> decode.Decoder(sql.ContextTypeEnum) {
   }
 }
 
-fn product_image_request_decoder() -> decode.Decoder(CreateProductImageRequest) {
+fn product_file_request_decoder() -> decode.Decoder(CreateProductFileRequest) {
   use kind_str <- decode.field("kind", decode.string)
   use id <- decode.optional_field(
     "id",
@@ -105,7 +105,7 @@ fn product_image_request_decoder() -> decode.Decoder(CreateProductImageRequest) 
     _ -> New
   }
 
-  decode.success(CreateProductImageRequest(
+  decode.success(CreateProductFileRequest(
     kind:,
     id:,
     data:,
@@ -146,7 +146,7 @@ pub fn create_product_request_decoder(product_data_create: Dynamic) {
     use price <- decode.field("price", product_price_decoder())
     use images <- decode.field(
       "images",
-      decode.list(product_image_request_decoder()),
+      decode.list(product_file_request_decoder()),
     )
     decode.success(CreateProductRequest(
       name:,

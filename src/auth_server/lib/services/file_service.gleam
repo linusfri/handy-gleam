@@ -66,3 +66,14 @@ pub fn get_files(
     }
   }
 }
+
+pub fn create_files(
+  req: request.Request(wisp.Connection),
+  ctx: web.Context,
+  user: User,
+) {
+  use <- wisp.require_method(req, http.Post)
+  use json_body <- wisp.require_json(req)
+
+  file.create_files(ctx.db, json_body, user)
+}

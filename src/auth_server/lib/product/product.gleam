@@ -130,7 +130,7 @@ pub fn get_products(
 fn create_product_images_tx(
   tx: pog.Connection,
   product_name: String,
-  images: List(transform.CreateProductImageRequest),
+  images: List(transform.CreateProductFileRequest),
   product_id: Int,
   user: User,
 ) -> Result(List(file_types.CreatedFile), String) {
@@ -149,7 +149,7 @@ fn create_product_images_tx(
 
 fn create_product_images_files(
   product_name: String,
-  images: List(transform.CreateProductImageRequest),
+  images: List(transform.CreateProductFileRequest),
 ) -> Result(List(file_types.CreatedFile), String) {
   let valid_images =
     list.filter_map(images, fn(image) {
@@ -194,7 +194,7 @@ fn create_product_images_files(
 fn link_existing_images_tx(
   tx: pog.Connection,
   product_id: Int,
-  images: List(transform.CreateProductImageRequest),
+  images: List(transform.CreateProductFileRequest),
 ) -> Result(Nil, String) {
   let ids =
     list.filter_map(images, fn(img) {
@@ -220,7 +220,7 @@ fn create_new_images_tx(
   tx: pog.Connection,
   product_name: String,
   product_id: Int,
-  images: List(transform.CreateProductImageRequest),
+  images: List(transform.CreateProductFileRequest),
   user: User,
 ) -> Result(List(file_types.CreatedFile), String) {
   use created_files <- result.try(create_product_images_files(

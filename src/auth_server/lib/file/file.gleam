@@ -2,6 +2,8 @@ import auth_server/lib/file/transform as file_transform
 import auth_server/lib/file_system/file_system
 import auth_server/lib/user/types.{type User}
 import auth_server/sql
+import gleam/dynamic
+import gleam/list
 import gleam/result
 import gleam/string
 import pog
@@ -63,4 +65,12 @@ pub fn get_files(
   )
 
   Ok(get_files_result.rows)
+}
+
+pub fn create_files(
+  db db: pog.Connection,
+  files files_data: dynamic.Dynamic,
+  user user: User,
+) {
+  todo
 }
