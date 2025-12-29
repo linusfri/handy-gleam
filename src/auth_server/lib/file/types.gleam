@@ -21,7 +21,7 @@ pub type ContextType =
 pub type CreatedFile {
   CreatedFile(
     filename: String,
-    file_type: FileType,
+    filetype: FileType,
     context_type: sql.ContextTypeEnum,
   )
 }
@@ -30,7 +30,7 @@ pub type FileUploadRequest {
   FileUploadRequest(
     data: String,
     filename: String,
-    mimetype: FileType,
+    filetype: FileType,
     context: ContextType,
   )
 }

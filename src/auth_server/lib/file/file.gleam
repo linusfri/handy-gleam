@@ -58,7 +58,7 @@ pub fn delete_file(
 
 pub fn get_files(
   db db: pog.Connection,
-  file_types file_types: List(String),
+  file_types filetypes: List(String),
   user user: User,
 ) {
   use get_files_result <- result.try(
@@ -87,7 +87,7 @@ pub fn create_files(
         id: option.None,
         data: option.Some(file.data),
         filename: file.filename,
-        file_type: file.mimetype,
+        file_type: file.filetype,
         context_type: file.context,
         uri: option.None,
       )

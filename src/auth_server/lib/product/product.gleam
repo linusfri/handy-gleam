@@ -42,10 +42,10 @@ pub fn create_product(
       [] -> Error("No product ID returned from db query")
     })
 
-    use _ <- result.try(create_product_images_tx(
+    use _ <- result.try(link_images_tx(
       tx,
-      product_request.image_ids,
       first_product.id,
+      product_request.image_ids,
     ))
 
     use _ <- result.try(
@@ -120,14 +120,6 @@ pub fn get_products(
     }
     Error(error) -> Error("product:get_products | " <> string.inspect(error))
   }
-}
-
-fn create_product_images_tx(
-  tx: pog.Connection,
-  images: List(Int),
-  product_id: Int,
-) -> Result(Nil, String) {
-  link_images_tx(tx, product_id, images)
 }
 
 fn link_images_tx(

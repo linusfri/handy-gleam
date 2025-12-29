@@ -102,12 +102,12 @@ pub fn file_to_json(file: File) -> json.Json {
 pub fn file_upload_request_to_json(
   file_upload_request: FileUploadRequest,
 ) -> json.Json {
-  let FileUploadRequest(data:, filename:, mimetype:, context:) =
+  let FileUploadRequest(data:, filename:, filetype:, context:) =
     file_upload_request
   json.object([
     #("data", json.string(data)),
     #("filename", json.string(filename)),
-    #("mimetype", file_type_enum_to_json(mimetype)),
+    #("filetype", file_type_enum_to_json(filetype)),
     #("context", context_type_enum_to_json(context)),
   ])
 }
@@ -115,9 +115,9 @@ pub fn file_upload_request_to_json(
 pub fn file_upload_request_decoder() -> decode.Decoder(FileUploadRequest) {
   use data <- decode.field("data", decode.string)
   use filename <- decode.field("filename", decode.string)
-  use mimetype <- decode.field("mimetype", file_type_decoder())
+  use filetype <- decode.field("filetype", file_type_decoder())
   use context <- decode.field("context", context_type_decoder())
-  decode.success(FileUploadRequest(data:, filename:, mimetype:, context:))
+  decode.success(FileUploadRequest(data:, filename:, filetype:, context:))
 }
 
 pub fn multiple_file_upload_request_decoder(
