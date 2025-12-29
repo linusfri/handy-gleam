@@ -1,9 +1,11 @@
 import auth_server/lib/file/transform as file_transform
+import auth_server/lib/file/types as file_types
 import auth_server/lib/file_system/file_system
 import auth_server/lib/user/types.{type User}
 import auth_server/sql
 import gleam/dynamic
 import gleam/list
+import gleam/option
 import gleam/result
 import gleam/string
 import pog
@@ -72,5 +74,66 @@ pub fn create_files(
   files files_data: dynamic.Dynamic,
   user user: User,
 ) {
-  todo
+  use files_upload_request <- result.try(
+    file_transform.multiple_file_upload_request_decoder(files_data)
+    |> result.map_error(fn(err) {
+      "file:create_files | " <> string.inspect(err)
+    }),
+  )
+
+  let files =
+    list.map(files_upload_request, fn(file) {
+      file_types.File(
+        id: option.None,
+        data: option.Some(file.data),
+        filename: file.filename,
+        file_type: file.mimetype,
+        context_type: file.context,
+        uri: option.None,
+      )
+    })
+
+  // Create the "physical" files
+  use _ <- result.try(
+    list.try_map(files, fn(file) { file_system.create_file(file) })
+    |> result.map_error(fn(err) {
+      "file:create_files:create_file | " <> string.inspect(err)
+    }),
+  )
+
+  let #(filenames, filetypes, contexts) =
+    list.fold(files, #([], [], []), fn(acc, file) {
+      let #(names, types, ctxs) = acc
+      #([file.filename, ..names], [file.file_type, ..types], [
+        file.context_type,
+        ..ctxs
+      ])
+    })
+
+  // Create the files in database
+  use _ <- result.try(
+    pog.transaction(db, fn(tx) {
+      use created_files_result <- result.try(
+        sql.create_files(tx, filenames, filetypes, contexts)
+        |> result.map_error(fn(err) {
+          "file:create_files:sql.create_files | " <> string.inspect(err)
+        }),
+      )
+
+      let created_file_ids =
+        list.map(created_files_result.rows, fn(created_file) { created_file.id })
+
+      use created_files_user_groups <- result.try(
+        sql.create_files_user_groups(tx, created_file_ids, user.groups)
+        |> result.map_error(fn(err) {
+          "file:create_files:sql.create_files | " <> string.inspect(err)
+        }),
+      )
+
+      Ok(created_files_user_groups)
+    })
+    |> result.map_error(fn(err) { string.inspect(err) }),
+  )
+
+  Ok("Files created")
 }

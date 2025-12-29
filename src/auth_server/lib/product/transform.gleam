@@ -29,24 +29,14 @@ pub type Product {
   )
 }
 
-/// Could be something that only contains kind and id. Or it could contain kind and all of the other keys except id.
-pub type CreateProductFileRequest {
-  CreateProductFileRequest(
-    kind: State,
-    id: Option(Int),
-    data: Option(String),
-    filename: Option(String),
-    mimetype: Option(FileType),
-  )
-}
-
 pub type CreateProductRequest {
   CreateProductRequest(
     name: String,
     description: Option(String),
     status: ProductStatus,
     price: Float,
-    images: List(CreateProductFileRequest),
+    image_ids: List(Int),
+    // Image ids
   )
 }
 
@@ -54,7 +44,10 @@ fn product_image_response_decoder() -> decode.Decoder(File) {
   use id <- decode.field("id", decode.int)
   use filename <- decode.field("filename", decode.string)
   use file_type <- decode.field("file_type", file_transform.file_type_decoder())
-  use context_type <- decode.field("context_type", context_type_decoder())
+  use context_type <- decode.field(
+    "context_type",
+    file_transform.context_type_decoder(),
+  )
 
   decode.success(File(
     id: option.Some(id),
@@ -63,54 +56,6 @@ fn product_image_response_decoder() -> decode.Decoder(File) {
     context_type:,
     file_type:,
     uri: option.Some(file_system.file_url(filename, context_type, file_type)),
-  ))
-}
-
-fn context_type_decoder() -> decode.Decoder(sql.ContextTypeEnum) {
-  use value <- decode.then(decode.string)
-  case value {
-    "product" -> decode.success(sql.Product)
-    "user" -> decode.success(sql.User)
-    "misc" -> decode.success(sql.Misc)
-    _ -> decode.failure(sql.Misc, "ContextTypeEnum")
-  }
-}
-
-fn product_file_request_decoder() -> decode.Decoder(CreateProductFileRequest) {
-  use kind_str <- decode.field("kind", decode.string)
-  use id <- decode.optional_field(
-    "id",
-    option.None,
-    decode.optional(decode.int),
-  )
-  use data <- decode.optional_field(
-    "data",
-    option.None,
-    decode.optional(decode.string),
-  )
-  use filename <- decode.optional_field(
-    "filename",
-    option.None,
-    decode.optional(decode.string),
-  )
-  use mimetype <- decode.optional_field(
-    "mimetype",
-    option.None,
-    decode.optional(file_transform.file_type_decoder()),
-  )
-
-  let kind = case kind_str {
-    "new" -> New
-    "existing" -> Existing
-    _ -> New
-  }
-
-  decode.success(CreateProductFileRequest(
-    kind:,
-    id:,
-    data:,
-    filename:,
-    mimetype:,
   ))
 }
 
@@ -144,16 +89,13 @@ pub fn create_product_request_decoder(product_data_create: Dynamic) {
     )
     use status <- decode.field("status", product_status_decoder())
     use price <- decode.field("price", product_price_decoder())
-    use images <- decode.field(
-      "images",
-      decode.list(product_file_request_decoder()),
-    )
+    use image_ids <- decode.field("image_ids", decode.list(decode.int))
     decode.success(CreateProductRequest(
       name:,
       description:,
       status:,
       price:,
-      images:,
+      image_ids:,
     ))
   }
 

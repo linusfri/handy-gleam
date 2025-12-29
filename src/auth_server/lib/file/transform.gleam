@@ -4,6 +4,7 @@ import auth_server/lib/file/types.{
 }
 import auth_server/lib/file_system/file_system
 import auth_server/sql
+import gleam/dynamic
 import gleam/dynamic/decode
 import gleam/json
 import gleam/option
@@ -58,6 +59,16 @@ pub fn context_type_enum_to_json(context_type_enum: ContextType) -> json.Json {
   }
 }
 
+pub fn context_type_decoder() -> decode.Decoder(sql.ContextTypeEnum) {
+  use value <- decode.then(decode.string)
+  case value {
+    "product" -> decode.success(sql.Product)
+    "user" -> decode.success(sql.User)
+    "misc" -> decode.success(sql.Misc)
+    _ -> decode.failure(sql.Misc, "ContextTypeEnum")
+  }
+}
+
 pub fn file_type_decoder() -> decode.Decoder(FileType) {
   use variant <- decode.then(decode.string)
   case variant {
@@ -91,17 +102,35 @@ pub fn file_to_json(file: File) -> json.Json {
 pub fn file_upload_request_to_json(
   file_upload_request: FileUploadRequest,
 ) -> json.Json {
-  let FileUploadRequest(data:, filename:, mimetype:) = file_upload_request
+  let FileUploadRequest(data:, filename:, mimetype:, context:) =
+    file_upload_request
   json.object([
     #("data", json.string(data)),
     #("filename", json.string(filename)),
-    #("mimetype", json.string(mimetype)),
+    #("mimetype", file_type_enum_to_json(mimetype)),
+    #("context", context_type_enum_to_json(context)),
   ])
 }
 
 pub fn file_upload_request_decoder() -> decode.Decoder(FileUploadRequest) {
   use data <- decode.field("data", decode.string)
   use filename <- decode.field("filename", decode.string)
-  use mimetype <- decode.field("mimetype", decode.string)
-  decode.success(FileUploadRequest(data:, filename:, mimetype:))
+  use mimetype <- decode.field("mimetype", file_type_decoder())
+  use context <- decode.field("context", context_type_decoder())
+  decode.success(FileUploadRequest(data:, filename:, mimetype:, context:))
+}
+
+pub fn multiple_file_upload_request_decoder(
+  files_upload_request: dynamic.Dynamic,
+) {
+  let multiple_file_upload_request_decoder = {
+    use files <- decode.field(
+      "files",
+      decode.list(file_upload_request_decoder()),
+    )
+
+    decode.success(files)
+  }
+
+  decode.run(files_upload_request, multiple_file_upload_request_decoder)
 }

@@ -46,6 +46,7 @@ pub fn handle_request(req: Request, ctx: web.Context) -> Response {
       use req, user <- web.authenticated_middleware(req)
       case method {
         Get -> file_service.get_files(req, ctx, user)
+        Post -> file_service.create_files(req, ctx, user)
         _ -> wisp.method_not_allowed(allowed: [Delete])
       }
     }

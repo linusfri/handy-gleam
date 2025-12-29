@@ -1,6 +1,4 @@
 import auth_server/sql
-import gleam/dynamic/decode
-import gleam/json
 import gleam/option.{type Option}
 
 pub type File {
@@ -29,5 +27,10 @@ pub type CreatedFile {
 }
 
 pub type FileUploadRequest {
-  FileUploadRequest(data: String, filename: String, mimetype: String)
+  FileUploadRequest(
+    data: String,
+    filename: String,
+    mimetype: FileType,
+    context: ContextType,
+  )
 }

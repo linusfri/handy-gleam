@@ -75,5 +75,11 @@ pub fn create_files(
   use <- wisp.require_method(req, http.Post)
   use json_body <- wisp.require_json(req)
 
-  file.create_files(ctx.db, json_body, user)
+  case file.create_files(ctx.db, json_body, user) {
+    Ok(message) -> wisp.json_response(message, 201)
+    Error(error) -> {
+      logger.log_error(error)
+      wisp.json_response(error, 500)
+    }
+  }
 }

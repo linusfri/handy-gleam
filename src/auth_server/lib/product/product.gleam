@@ -1,12 +1,9 @@
-import auth_server/lib/file/types as file_types
-import auth_server/lib/file_system/file_system
 import auth_server/lib/product/transform
 import auth_server/lib/user/types.{type User}
 import auth_server/lib/utils/logger
 import auth_server/sql.{type SelectProductsRow, SelectProductsRow}
 import auth_server/web
 import gleam/dynamic.{type Dynamic}
-import gleam/list
 import gleam/option
 import gleam/result
 import gleam/string
@@ -47,10 +44,8 @@ pub fn create_product(
 
     use _ <- result.try(create_product_images_tx(
       tx,
-      first_product.name,
-      product_request.images,
+      product_request.image_ids,
       first_product.id,
-      user,
     ))
 
     use _ <- result.try(
@@ -129,141 +124,21 @@ pub fn get_products(
 
 fn create_product_images_tx(
   tx: pog.Connection,
-  product_name: String,
-  images: List(transform.CreateProductFileRequest),
+  images: List(Int),
   product_id: Int,
-  user: User,
-) -> Result(List(file_types.CreatedFile), String) {
-  let #(existing_images, new_images) =
-    list.partition(images, fn(img) {
-      case img.kind {
-        transform.Existing -> True
-        transform.New -> False
-      }
-    })
-
-  use _ <- result.try(link_existing_images_tx(tx, product_id, existing_images))
-
-  create_new_images_tx(tx, product_name, product_id, new_images, user)
-}
-
-fn create_product_images_files(
-  product_name: String,
-  images: List(transform.CreateProductFileRequest),
-) -> Result(List(file_types.CreatedFile), String) {
-  let valid_images =
-    list.filter_map(images, fn(image) {
-      let filename = option.unwrap(image.filename, "no_filename")
-      let filetype = option.unwrap(image.mimetype, sql.Unknown)
-      case image.filename {
-        option.Some(name) if name != "" ->
-          Ok(file_types.File(
-            id: option.None,
-            data: image.data,
-            filename: product_name <> filename,
-            file_type: filetype,
-            context_type: sql.Product,
-            uri: option.Some(file_system.file_url(
-              filename,
-              sql.Product,
-              filetype,
-            )),
-          ))
-        err ->
-          Error("product:create_product_images_files | " <> string.inspect(err))
-      }
-    })
-
-  case valid_images {
-    [] -> Ok([])
-    _ -> {
-      list.map(valid_images, fn(image) {
-        use created_filename <- result.try(file_system.create_file(image))
-
-        Ok(file_types.CreatedFile(
-          filename: created_filename,
-          file_type: image.file_type,
-          context_type: image.context_type,
-        ))
-      })
-      |> result.all()
-    }
-  }
-}
-
-fn link_existing_images_tx(
-  tx: pog.Connection,
-  product_id: Int,
-  images: List(transform.CreateProductFileRequest),
 ) -> Result(Nil, String) {
-  let ids =
-    list.filter_map(images, fn(img) {
-      case img.id {
-        option.Some(id) -> Ok(id)
-        option.None -> Error(Nil)
-      }
-    })
-
-  case ids {
-    [] -> Ok(Nil)
-    _ ->
-      sql.create_product_files(tx, product_id, ids)
-      |> result.map(fn(_) { Nil })
-      |> result.map_error(fn(err) {
-        "product:link_existing_images:sql.create_product_images | "
-        <> string.inspect(err)
-      })
-  }
+  link_images_tx(tx, product_id, images)
 }
 
-fn create_new_images_tx(
+fn link_images_tx(
   tx: pog.Connection,
-  product_name: String,
   product_id: Int,
-  images: List(transform.CreateProductFileRequest),
-  user: User,
-) -> Result(List(file_types.CreatedFile), String) {
-  use created_files <- result.try(create_product_images_files(
-    product_name,
-    images,
-  ))
-
-  case created_files {
-    [] -> Ok([])
-    _ -> {
-      let file_names = list.map(created_files, fn(file) { file.filename })
-      let file_types = list.map(created_files, fn(file) { file.file_type })
-      let file_contexts =
-        list.map(created_files, fn(file) { file.context_type })
-
-      use created_images <- result.try(
-        sql.create_files(tx, file_names, file_types, file_contexts)
-        |> result.map_error(fn(err) {
-          "product:create_new_images_tx:sql.create_files | "
-          <> string.inspect(err)
-        }),
-      )
-
-      // Link all files to the product
-      let image_ids = list.map(created_images.rows, fn(row) { row.id })
-
-      use _ <- result.try(
-        sql.create_files_user_groups(tx, image_ids, user.groups)
-        |> result.map_error(fn(err) {
-          "product:create_new_images_tx:sql.create_files_user_groups | "
-          <> string.inspect(err)
-        }),
-      )
-
-      use _ <- result.try(
-        sql.create_product_files(tx, product_id, image_ids)
-        |> result.map_error(fn(err) {
-          "product:create_new_images_tx:sql.create_product_images | "
-          <> string.inspect(err)
-        }),
-      )
-
-      Ok(created_files)
-    }
-  }
+  images: List(Int),
+) -> Result(Nil, String) {
+  sql.create_product_files(tx, product_id, images)
+  |> result.map(fn(_) { Nil })
+  |> result.map_error(fn(err) {
+    "product:link_existing_images:sql.create_product_images | "
+    <> string.inspect(err)
+  })
 }
