@@ -106,14 +106,17 @@ pub fn delete_product(
   context ctx: web.Context,
   user user: User,
 ) -> Result(Nil, String) {
-  use _ <- result.try(
-    sql.delete_product(ctx.db, product_id, user.groups)
-    |> result.map_error(fn(err) {
-      "delete_product:sql.delete_product | " <> string.inspect(err)
-    }),
-  )
+  pog.transaction(ctx.db, fn(tx) {
+    use _ <- result.try(
+      sql.delete_product(tx, product_id, user.groups)
+      |> result.map_error(fn(err) {
+        "delete_product:sql.delete_product | " <> string.inspect(err)
+      }),
+    )
 
-  Ok(Nil)
+    Ok(Nil)
+  })
+  |> result.map_error(fn(err) { "Transaction failed: " <> string.inspect(err) })
 }
 
 pub fn get_product_by_id(
@@ -121,42 +124,48 @@ pub fn get_product_by_id(
   context ctx: web.Context,
   user user: User,
 ) -> Result(SelectProductsRow, String) {
-  use product_result <- result.try(
-    sql.select_product_by_id(ctx.db, product_id, user.groups)
-    |> result.map_error(fn(err) {
-      "product:get_product_by_id:sql.select_product_by_id | "
-      <> string.inspect(err)
-    }),
-  )
+  pog.transaction(ctx.db, fn(tx) {
+    use product_result <- result.try(
+      sql.select_product_by_id(tx, product_id, user.groups)
+      |> result.map_error(fn(err) {
+        "product:get_product_by_id:sql.select_product_by_id | "
+        <> string.inspect(err)
+      }),
+    )
 
-  // Extract the product from the first row and convert to SelectProductsRow
-  case product_result.rows {
-    [product, ..] ->
-      Ok(SelectProductsRow(
-        id: product.id,
-        name: product.name,
-        description: product.description,
-        status: product.status,
-        price: product.price,
-        images: product.images,
-        created_at: product.created_at,
-        updated_at: product.updated_at,
-      ))
-    [] ->
-      Error("product:get_product_by_id | Product not found or access denied")
-  }
+    // Extract the product from the first row and convert to SelectProductsRow
+    case product_result.rows {
+      [product, ..] ->
+        Ok(SelectProductsRow(
+          id: product.id,
+          name: product.name,
+          description: product.description,
+          status: product.status,
+          price: product.price,
+          images: product.images,
+          created_at: product.created_at,
+          updated_at: product.updated_at,
+        ))
+      [] ->
+        Error("product:get_product_by_id | Product not found or access denied")
+    }
+  })
+  |> result.map_error(fn(err) { "Transaction failed: " <> string.inspect(err) })
 }
 
 pub fn get_products(
   ctx: web.Context,
   user: User,
 ) -> Result(List(SelectProductsRow), String) {
-  case sql.select_products(ctx.db, user.groups) {
-    Ok(products) -> {
-      Ok(products.rows)
+  pog.transaction(ctx.db, fn(tx) {
+    case sql.select_products(tx, user.groups) {
+      Ok(products) -> {
+        Ok(products.rows)
+      }
+      Error(error) -> Error("product:get_products | " <> string.inspect(error))
     }
-    Error(error) -> Error("product:get_products | " <> string.inspect(error))
-  }
+  })
+  |> result.map_error(fn(err) { "Transaction failed: " <> string.inspect(err) })
 }
 
 fn link_files_tx(
