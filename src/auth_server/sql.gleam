@@ -5,7 +5,6 @@
 ////
 
 import gleam/dynamic/decode
-import gleam/json
 import gleam/option.{type Option}
 import gleam/time/timestamp.{type Timestamp}
 import pog
@@ -54,11 +53,12 @@ select * from unnest(
 returning id, filename, file_type, context_type;"
   |> pog.query
   |> pog.parameter(pog.array(fn(value) { pog.text(value) }, arg_1))
-  |> pog.parameter(pog.array(fn(value) { file_type_enum_encoder(value) }, arg_2))
-  |> pog.parameter(pog.array(
-    fn(value) { context_type_enum_encoder(value) },
-    arg_3,
-  ))
+  |> pog.parameter(
+    pog.array(fn(value) { file_type_enum_encoder(value) }, arg_2),
+  )
+  |> pog.parameter(
+    pog.array(fn(value) { context_type_enum_encoder(value) }, arg_3),
+  )
   |> pog.returning(decoder)
   |> pog.execute(db)
 }
@@ -170,9 +170,16 @@ pub fn create_product(
     ))
   }
 
-  "
-insert into products (name, description, status, price, created_at, updated_at) values
-    ($1, $2, $3, $4, now(), now()) returning *;"
+  "insert into
+    products (
+        name,
+        description,
+        status,
+        price,
+        created_at,
+        updated_at
+    )
+values ($1, $2, $3, $4, now(), now()) returning *;"
   |> pog.query
   |> pog.parameter(pog.text(arg_1))
   |> pog.parameter(pog.text(arg_2))
@@ -245,13 +252,17 @@ pub fn delete_file_by_id(
   "-- name: delete_file_by_id
 -- Deletes a file only if it belongs to a product in user's groups
 delete from files i
-where i.id = $1
-and exists (
-  select 1 from product_file pf
-  inner join product_user_group pug on pf.product_id = pug.product_id
-  where pf.file_id = i.id
-  and pug.user_group_id = any($2)
-);"
+where
+    i.id = $1
+    and exists (
+        select 1
+        from
+            product_file pf
+            inner join product_user_group pug on pf.product_id = pug.product_id
+        where
+            pf.file_id = i.id
+            and pug.user_group_id = any ($2)
+    );"
   |> pog.query
   |> pog.parameter(pog.int(arg_1))
   |> pog.parameter(pog.array(fn(value) { pog.text(value) }, arg_2))
@@ -275,13 +286,42 @@ pub fn delete_product(
   "-- name: delete_product
 -- Deletes a product by ID only if it belongs to user's groups
 delete from products p
-where p.id = $1
+where
+    p.id = $1
+    and exists (
+        select 1
+        from product_user_group pug
+        where
+            pug.product_id = p.id
+            and pug.user_group_id = any ($2)
+    );"
+  |> pog.query
+  |> pog.parameter(pog.int(arg_1))
+  |> pog.parameter(pog.array(fn(value) { pog.text(value) }, arg_2))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
+/// Runs the `delete_product_files` query
+/// defined in `./src/auth_server/sql/delete_product_files.sql`.
+///
+/// > 🐿️ This function was generated automatically using v4.6.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn delete_product_files(
+  db: pog.Connection,
+  arg_1: Int,
+  arg_2: List(String),
+) -> Result(pog.Returned(Nil), pog.QueryError) {
+  let decoder = decode.map(decode.dynamic, fn(_) { Nil })
+
+  "delete from product_file
+where product_id = $1
 and exists (
-  select 1 from product_user_group pug
-  where pug.product_id = p.id
-  and pug.user_group_id = any($2)
-);
-"
+    select 1 from product_user_group
+    where product_user_group.product_id = product_file.product_id
+    and product_user_group.user_group_id = any($2)
+);"
   |> pog.query
   |> pog.parameter(pog.int(arg_1))
   |> pog.parameter(pog.array(fn(value) { pog.text(value) }, arg_2))
@@ -325,17 +365,16 @@ pub fn select_file_by_id(
 
   "-- name: select_file_by_id
 -- Get file details by ID with user_group permission check
-select
-    distinct files.id,
+select distinct
+    files.id,
     files.filename,
     files.file_type,
     files.context_type
-from
-    files
+from files
     inner join file_user_group on files.id = file_user_group.file_id
 where
     files.id = $1
-    and file_user_group.user_group_id = any($2)
+    and file_user_group.user_group_id = any ($2)
     and files.deleted = false;"
   |> pog.query
   |> pog.parameter(pog.int(arg_1))
@@ -377,16 +416,11 @@ pub fn select_files(
     decode.success(SelectFilesRow(id:, filename:, file_type:, context_type:))
   }
 
-  "select
-    files.id,
-    files.filename,
-    files.file_type,
-    files.context_type
-from
-    files
-inner join file_user_group on files.id = file_user_group.file_id
+  "select files.id, files.filename, files.file_type, files.context_type
+from files
+    inner join file_user_group on files.id = file_user_group.file_id
 where
-    file_user_group.user_group_id = any($1);"
+    file_user_group.user_group_id = any ($1);"
   |> pog.query
   |> pog.parameter(pog.array(fn(value) { pog.text(value) }, arg_1))
   |> pog.returning(decoder)
@@ -569,6 +603,84 @@ order by
   |> pog.execute(db)
 }
 
+/// A row you get from running the `update_product` query
+/// defined in `./src/auth_server/sql/update_product.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.6.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type UpdateProductRow {
+  UpdateProductRow(
+    id: Int,
+    name: String,
+    description: Option(String),
+    status: ProductStatus,
+    price: Float,
+    created_at: Option(Timestamp),
+    updated_at: Option(Timestamp),
+  )
+}
+
+/// Runs the `update_product` query
+/// defined in `./src/auth_server/sql/update_product.sql`.
+///
+/// > 🐿️ This function was generated automatically using v4.6.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn update_product(
+  db: pog.Connection,
+  arg_1: Int,
+  arg_2: String,
+  arg_3: String,
+  arg_4: ProductStatus,
+  arg_5: Float,
+  arg_6: List(String),
+) -> Result(pog.Returned(UpdateProductRow), pog.QueryError) {
+  let decoder = {
+    use id <- decode.field(0, decode.int)
+    use name <- decode.field(1, decode.string)
+    use description <- decode.field(2, decode.optional(decode.string))
+    use status <- decode.field(3, product_status_decoder())
+    use price <- decode.field(4, pog.numeric_decoder())
+    use created_at <- decode.field(5, decode.optional(pog.timestamp_decoder()))
+    use updated_at <- decode.field(6, decode.optional(pog.timestamp_decoder()))
+    decode.success(UpdateProductRow(
+      id:,
+      name:,
+      description:,
+      status:,
+      price:,
+      created_at:,
+      updated_at:,
+    ))
+  }
+
+  "update products
+set
+    name = $2,
+    description = $3,
+    status = $4,
+    price = $5,
+    updated_at = now()
+where id = $1
+and exists (
+    select 1 from product_user_group
+    where product_user_group.product_id = products.id
+    and product_user_group.user_group_id = any($6)
+)
+returning *;
+"
+  |> pog.query
+  |> pog.parameter(pog.int(arg_1))
+  |> pog.parameter(pog.text(arg_2))
+  |> pog.parameter(pog.text(arg_3))
+  |> pog.parameter(product_status_encoder(arg_4))
+  |> pog.parameter(pog.float(arg_5))
+  |> pog.parameter(pog.array(fn(value) { pog.text(value) }, arg_6))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
 // --- Enums -------------------------------------------------------------------
 
 /// Corresponds to the Postgres `context_type_enum` enum.
@@ -599,9 +711,7 @@ fn context_type_enum_encoder(context_type_enum) -> pog.Value {
     User -> "user"
   }
   |> pog.text
-}
-
-/// Corresponds to the Postgres `file_type_enum` enum.
+}/// Corresponds to the Postgres `file_type_enum` enum.
 ///
 /// > 🐿️ This type definition was generated automatically using v4.6.0 of the
 /// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
@@ -629,9 +739,7 @@ fn file_type_enum_encoder(file_type_enum) -> pog.Value {
     Image -> "image"
   }
   |> pog.text
-}
-
-/// Corresponds to the Postgres `product_status` enum.
+}/// Corresponds to the Postgres `product_status` enum.
 ///
 /// > 🐿️ This type definition was generated automatically using v4.6.0 of the
 /// > [squirrel package](https://github.com/giacomocavalieri/squirrel).

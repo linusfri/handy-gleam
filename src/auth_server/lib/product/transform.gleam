@@ -1,5 +1,5 @@
 import auth_server/lib/file/transform as file_transform
-import auth_server/lib/file/types.{type File, type FileType, File}
+import auth_server/lib/file/types.{type File, File}
 import auth_server/lib/file_system/file_system
 import auth_server/sql.{type ProductStatus, Available, Sold}
 import gleam/dynamic.{type Dynamic}
@@ -29,14 +29,13 @@ pub type Product {
   )
 }
 
-pub type CreateProductRequest {
-  CreateProductRequest(
+pub type ProductMutationRequest {
+  ProductMutationRequest(
     name: String,
     description: Option(String),
     status: ProductStatus,
     price: Float,
     image_ids: List(Int),
-    // Image ids
   )
 }
 
@@ -80,7 +79,7 @@ fn product_status_to_json(product_status: ProductStatus) -> json.Json {
   }
 }
 
-pub fn create_product_request_decoder(product_data_create: Dynamic) {
+pub fn product_mutation_request_decoder(product_data_create: Dynamic) {
   let products_row_decoder = {
     use name <- decode.field("name", decode.string)
     use description <- decode.field(
@@ -90,7 +89,7 @@ pub fn create_product_request_decoder(product_data_create: Dynamic) {
     use status <- decode.field("status", product_status_decoder())
     use price <- decode.field("price", product_price_decoder())
     use image_ids <- decode.field("image_ids", decode.list(decode.int))
-    decode.success(CreateProductRequest(
+    decode.success(ProductMutationRequest(
       name:,
       description:,
       status:,

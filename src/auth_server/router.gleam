@@ -3,7 +3,7 @@ import auth_server/lib/services/file_service
 import auth_server/lib/services/product_service
 import auth_server/lib/user/user
 import auth_server/web
-import gleam/http.{Delete, Get, Post}
+import gleam/http.{Delete, Get, Post, Put}
 import wisp.{type Request, type Response}
 
 pub fn handle_request(req: Request, ctx: web.Context) -> Response {
@@ -38,6 +38,7 @@ pub fn handle_request(req: Request, ctx: web.Context) -> Response {
       use req, user <- web.authenticated_middleware(req)
       case method {
         Get -> product_service.get_product(req, ctx, user, product_id)
+        Put -> product_service.update_product(req, ctx, user, product_id)
         Delete -> product_service.delete_product(req, ctx, user, product_id)
         _ -> wisp.method_not_allowed(allowed: [Get, Delete])
       }

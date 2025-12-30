@@ -110,3 +110,33 @@ pub fn get_product(
     }
   }
 }
+
+pub fn update_product(
+  req req: request.Request(wisp.Connection),
+  ctx ctx: web.Context,
+  user user: User,
+  product_id product_id_str: String,
+) {
+  use json_body <- wisp.require_json(req)
+
+  let edit_product_result = {
+    use product_id <- result.try(
+      int.parse(product_id_str)
+      |> result.replace_error("Invalid product id"),
+    )
+
+    product.update_product(
+      product_data: json_body,
+      product_id: product_id,
+      context: ctx,
+      user: user,
+    )
+  }
+
+  case edit_product_result {
+    Ok(_) -> wisp.json_response("Product updated", 201)
+    Error(err) -> {
+      wisp.json_response(err, 500)
+    }
+  }
+}

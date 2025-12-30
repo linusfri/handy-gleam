@@ -1,6 +1,5 @@
 import auth_server/lib/product/transform
 import auth_server/lib/user/types.{type User}
-import auth_server/lib/utils/logger
 import auth_server/sql.{type SelectProductsRow, SelectProductsRow}
 import auth_server/web
 import gleam/dynamic.{type Dynamic}
@@ -15,11 +14,8 @@ pub fn create_product(
   context ctx: web.Context,
 ) -> Result(Nil, String) {
   use product_request <- result.try(
-    transform.create_product_request_decoder(data)
-    |> result.map_error(fn(errors) {
-      logger.log_error_with_context("create_product:decode_request", errors)
-      string.inspect(errors)
-    }),
+    transform.product_mutation_request_decoder(data)
+    |> result.map_error(fn(errors) { string.inspect(errors) }),
   )
 
   pog.transaction(ctx.db, fn(tx) {
@@ -31,10 +27,7 @@ pub fn create_product(
         product_request.status,
         product_request.price,
       )
-      |> result.map_error(fn(err) {
-        logger.log_error_with_context("create_product:sql.create_product", err)
-        "Could not create product"
-      }),
+      |> result.map_error(fn(err) { "Could not create product" }),
     )
 
     use first_product <- result.try(case create_product_response.rows {
@@ -42,7 +35,7 @@ pub fn create_product(
       [] -> Error("No product ID returned from db query")
     })
 
-    use _ <- result.try(link_images_tx(
+    use _ <- result.try(link_files_tx(
       tx,
       first_product.id,
       product_request.image_ids,
@@ -50,18 +43,62 @@ pub fn create_product(
 
     use _ <- result.try(
       sql.create_products_user_groups(tx, [first_product.id], user.groups)
-      |> result.map_error(fn(err) {
-        logger.log_error_with_context("create_product:link_user_groups", err)
-        string.inspect(err)
-      }),
+      |> result.map_error(fn(err) { string.inspect(err) }),
     )
 
     Ok(Nil)
   })
-  |> result.map_error(fn(err) {
-    logger.log_error_with_context("create_product:transaction", err)
-    "Transaction failed: " <> string.inspect(err)
+  |> result.map_error(fn(err) { "Transaction failed: " <> string.inspect(err) })
+}
+
+pub fn update_product(
+  product_id product_id: Int,
+  product_data product_data: Dynamic,
+  context ctx: web.Context,
+  user user: User,
+) {
+  use product_edit_request <- result.try(
+    transform.product_mutation_request_decoder(product_data)
+    |> result.map_error(fn(err) { string.inspect(err) }),
+  )
+
+  pog.transaction(ctx.db, fn(tx) {
+    use update_product_response <- result.try(
+      sql.update_product(
+        tx,
+        product_id,
+        product_edit_request.name,
+        option.unwrap(product_edit_request.description, ""),
+        product_edit_request.status,
+        product_edit_request.price,
+        user.groups,
+      )
+      |> result.map_error(fn(err) {
+        "Could not update product | " <> string.inspect(err)
+      }),
+    )
+
+    use _ <- result.try(
+      sql.delete_product_files(tx, product_id, user.groups)
+      |> result.map_error(fn(err) {
+        "Could not delete existing product files | " <> string.inspect(err)
+      }),
+    )
+
+    use first_product <- result.try(case update_product_response.rows {
+      [first, ..] -> Ok(first)
+      [] -> Error("No product ID returned from db query")
+    })
+
+    use _ <- result.try(link_files_tx(
+      tx,
+      first_product.id,
+      product_edit_request.image_ids,
+    ))
+
+    Ok(Nil)
   })
+  |> result.map_error(fn(err) { "Transaction failed: " <> string.inspect(err) })
 }
 
 pub fn delete_product(
@@ -122,7 +159,7 @@ pub fn get_products(
   }
 }
 
-fn link_images_tx(
+fn link_files_tx(
   tx: pog.Connection,
   product_id: Int,
   images: List(Int),
