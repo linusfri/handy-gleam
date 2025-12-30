@@ -27,7 +27,9 @@ pub fn create_product(
         product_request.status,
         product_request.price,
       )
-      |> result.map_error(fn(err) { "Could not create product" }),
+      |> result.map_error(fn(err) {
+        "Could not create product | " <> string.inspect(err)
+      }),
     )
 
     use first_product <- result.try(case create_product_response.rows {
