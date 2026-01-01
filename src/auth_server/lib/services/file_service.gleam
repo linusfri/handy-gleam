@@ -47,7 +47,7 @@ pub fn delete_file(
 }
 
 pub fn get_files(
-  req: request.Request(wisp.Connection),
+  _req: request.Request(wisp.Connection),
   ctx: web.Context,
   user: User,
 ) {

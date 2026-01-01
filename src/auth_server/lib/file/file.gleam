@@ -58,7 +58,7 @@ pub fn delete_file(
 
 pub fn get_files(
   db db: pog.Connection,
-  file_types filetypes: List(String),
+  file_types _filetypes: List(String),
   user user: User,
 ) {
   use get_files_result <- result.try(
