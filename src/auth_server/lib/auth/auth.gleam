@@ -31,7 +31,7 @@ pub fn logout(req: Request, user: User) {
 
   let site_uri = auth_utils.get_default_admin_url()
 
-  let access_token = auth_utils.get_token(req)
+  let access_token = auth_utils.get_session_token(req)
 
   let user_logout_request =
     request.Request(

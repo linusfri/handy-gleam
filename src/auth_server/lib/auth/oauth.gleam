@@ -98,6 +98,6 @@ pub fn build_login_response(form_data: LoginFormData) {
       let json_body = auth_transform.login_response_encoder(login_response)
       Ok(wisp.json_response(json.to_string(json_body), 200))
     }
-    Error(message) -> Error(wisp.json_response(message, 500))
+    Error(wisp_response) -> Error(wisp_response)
   }
 }

@@ -1,5 +1,6 @@
 import auth_server/lib/auth/auth
 import auth_server/lib/services/file_service
+import auth_server/lib/services/integration_service
 import auth_server/lib/services/product_service
 import auth_server/lib/user/user
 import auth_server/web
@@ -58,9 +59,19 @@ pub fn handle_request(req: Request, ctx: web.Context) -> Response {
         _ -> wisp.method_not_allowed(allowed: [Delete])
       }
     }
-    ["facebook-instagram"], method -> {
-      use req, user <- web.authenticated_middleware(req)
-      todo
+    ["facebook-instagram", "login"], method -> {
+      use req, _ <- web.authenticated_middleware(req)
+      case method {
+        Get -> integration_service.initiate_facebook_login(req)
+        _ -> wisp.method_not_allowed(allowed: [Get])
+      }
+    }
+    ["facebook-instagram", "long-lived-token"], method -> {
+      use req, _ <- web.authenticated_middleware(req)
+      case method {
+        Get -> integration_service.request_long_lived_facebook_token(req, ctx)
+        _ -> wisp.method_not_allowed(allowed: [Get])
+      }
     }
     _, _ -> wisp.json_response("Not found", 404)
   }

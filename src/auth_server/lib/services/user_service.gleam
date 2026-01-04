@@ -8,6 +8,7 @@ import gleam/http
 import gleam/http/request as http_request
 import gleam/json
 import gleam/result
+import wisp
 
 /// Requests user from authentication backend. In this case keycloak.
 pub fn request_get_user(access_token: String) {
@@ -24,20 +25,33 @@ pub fn request_get_user(access_token: String) {
       query: site_uri.query,
     )
 
-  use user_response <- result.try(api_client.send_request(user_info_request))
-  use user_data <- result.try(
-    json.parse(user_response.body, decode.dynamic)
+  use user_response <- result.try(
+    api_client.send_request(user_info_request)
     |> result.map_error(fn(err) {
       logger.log_error_with_context("user_service:request_get_user", err)
-      "Failed to parse user response as JSON"
+      wisp.json_response("Failed to get user from auth server", 500)
     }),
   )
-  use decoded_user <- result.try(
-    user_transform.user_decoder(user_data)
-    |> result.map_error(fn(err) {
-      logger.log_error_with_context("user_service:request_get_user", err)
-      "Failed to decode user data"
-    }),
-  )
-  Ok(decoded_user)
+
+  case user_response.status {
+    200 -> {
+      use user_data <- result.try(
+        json.parse(user_response.body, decode.dynamic)
+        |> result.map_error(fn(err) {
+          logger.log_error_with_context("user_service:request_get_user", err)
+          wisp.json_response("Failed to parse user response as JSON", 500)
+        }),
+      )
+      use decoded_user <- result.try(
+        user_transform.user_decoder(user_data)
+        |> result.map_error(fn(err) {
+          logger.log_error_with_context("user_service:request_get_user", err)
+          wisp.json_response("Failed to decode user data", 500)
+        }),
+      )
+      Ok(decoded_user)
+    }
+    401 -> Error(wisp.json_response("Unauthorized", 401))
+    status -> Error(wisp.json_response(user_response.body, status))
+  }
 }

@@ -35,7 +35,7 @@ pub fn authenticated_middleware(
     Ok(user) -> handle_request(req, user)
     Error(wisp_error) -> {
       logger.log_error(wisp_error)
-      wisp.json_response(wisp_error, 500)
+      wisp_error
     }
   }
 }

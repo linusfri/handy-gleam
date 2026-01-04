@@ -29,7 +29,7 @@ pub fn get_default_admin_url() {
   )
 }
 
-pub fn get_token(req) {
+pub fn get_session_token(req) {
   let token = http_request.get_header(req, "Authorization")
 
   case token {

@@ -236,6 +236,38 @@ cross join unnest($2::text[]) as g(user_group_id);"
   |> pog.execute(db)
 }
 
+/// name: create_user_integration_token :exec
+///
+/// > 🐿️ This function was generated automatically using v4.6.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn create_user_integration_token(
+  db: pog.Connection,
+  arg_1: String,
+  arg_2: IntegrationPlatform,
+  arg_3: String,
+  arg_4: String,
+) -> Result(pog.Returned(Nil), pog.QueryError) {
+  let decoder = decode.map(decode.dynamic, fn(_) { Nil })
+
+  "-- name: create_user_integration_token :exec
+INSERT INTO user_integration_tokens (user_id, platform, access_token, token_type)
+VALUES ($1, $2, $3, $4)
+ON CONFLICT (user_id, platform) 
+DO UPDATE SET 
+  access_token = EXCLUDED.access_token,
+  token_type = EXCLUDED.token_type,
+  updated_at = NOW();
+"
+  |> pog.query
+  |> pog.parameter(pog.text(arg_1))
+  |> pog.parameter(integration_platform_encoder(arg_2))
+  |> pog.parameter(pog.text(arg_3))
+  |> pog.parameter(pog.text(arg_4))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
 /// name: delete_file_by_id
 /// Deletes a file only if it belongs to a product in user's groups
 ///
@@ -737,6 +769,22 @@ fn file_type_enum_encoder(file_type_enum) -> pog.Value {
     Unknown -> "unknown"
     Video -> "video"
     Image -> "image"
+  }
+  |> pog.text
+}/// Corresponds to the Postgres `integration_platform` enum.
+///
+/// > 🐿️ This type definition was generated automatically using v4.6.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type IntegrationPlatform {
+  Facebook
+  Instagram
+}
+
+fn integration_platform_encoder(integration_platform) -> pog.Value {
+  case integration_platform {
+    Facebook -> "facebook"
+    Instagram -> "instagram"
   }
   |> pog.text
 }/// Corresponds to the Postgres `product_status` enum.
