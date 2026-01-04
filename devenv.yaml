@@ -3,3 +3,5 @@ inputs:
     url: github:NixOS/nixpkgs/release-25.05
   gleam-pkgs:
     url: github:NixOS/nixpkgs/nixos-unstable
+
+allowUnfree: true

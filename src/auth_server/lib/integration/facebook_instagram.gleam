@@ -1,4 +1,5 @@
 import auth_server/config.{config}
+import auth_server/lib/auth/auth_utils
 import auth_server/lib/integration/transform
 import auth_server/lib/integration/types
 import auth_server/lib/utils/api_client
@@ -10,8 +11,13 @@ import gleam/json
 import gleam/list
 import gleam/option.{None}
 import gleam/result
+import wisp
 
-pub fn initiate_login() -> Result(String, String) {
+pub fn initiate_login(
+  req: request.Request(wisp.Connection),
+) -> Result(String, String) {
+  let token = auth_utils.get_session_token(req)
+
   let request =
     request.Request(
       method: http.Get,
@@ -27,6 +33,7 @@ pub fn initiate_login() -> Result(String, String) {
       #("client_id", config().facebook_app_id),
       #("redirect_uri", config().facebook_redirect_uri),
       #("response_type", "code"),
+      #("state", token),
       #(
         "scope",
         "pages_show_list,business_management,instagram_basic,instagram_manage_comments,instagram_content_publish,instagram_manage_messages",

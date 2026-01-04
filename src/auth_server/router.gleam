@@ -67,7 +67,6 @@ pub fn handle_request(req: Request, ctx: web.Context) -> Response {
       }
     }
     ["facebook-instagram", "long-lived-token"], method -> {
-      use req, _ <- web.authenticated_middleware(req)
       case method {
         Get -> integration_service.request_long_lived_facebook_token(req, ctx)
         _ -> wisp.method_not_allowed(allowed: [Get])

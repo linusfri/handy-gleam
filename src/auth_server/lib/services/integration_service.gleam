@@ -14,7 +14,7 @@ import wisp
 pub fn initiate_facebook_login(req: request.Request(wisp.Connection)) {
   let user_token = auth_utils.get_session_token(req)
 
-  case facebook_instagram.initiate_login() {
+  case facebook_instagram.initiate_login(req) {
     Ok(redirect_url) -> {
       wisp.json_response(
         json.to_string(
@@ -35,10 +35,9 @@ pub fn request_long_lived_facebook_token(
   ctx: Context,
 ) {
   let code = list.key_find(wisp.get_query(req), "code") |> result.unwrap("")
-  let token =
-    wisp.get_cookie(req, "fb_user_token", wisp.Signed) |> result.unwrap("")
 
-  echo token
+  // Unsafe but i can't fucking stand this
+  let token = list.key_find(wisp.get_query(req), "state") |> result.unwrap("")
 
   let response = {
     use user <- result.try(
