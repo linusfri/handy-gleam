@@ -4,8 +4,9 @@ import auth_server/lib/auth/types.{
   type LoginFormData, type RefreshTokenRequest, LoginResponse,
 }
 import auth_server/lib/services/user_service
-import auth_server/lib/user/transform as user_transform
 import auth_server/lib/utils/api_client
+import auth_server/lib/utils/logger
+import gleam/dynamic/decode
 import gleam/http/request as http_request
 import gleam/json
 import gleam/result
@@ -34,14 +35,30 @@ fn build_refresh_request(refresh_token_request: RefreshTokenRequest) {
 }
 
 fn request_token(token_request: http_request.Request(String)) {
-  case api_client.send_request(token_request) {
-    Ok(res) ->
-      case auth_transform.token_response_decoder(res) {
-        Ok(token_response) -> Ok(token_response)
-        Error(_) ->
-          Error(wisp.json_response("Could not decode refresh token", 500))
-      }
-    Error(wisp_error) -> Error(wisp_error)
+  let token = {
+    use token_response <- result.try(api_client.send_request(token_request))
+    use token_data <- result.try(
+      json.parse(token_response.body, decode.dynamic)
+      |> result.map_error(fn(err) {
+        logger.log_error_with_context("oauth:request_token", err)
+        "Failed to turn token into dynamic data"
+      }),
+    )
+
+    use decoded_token <- result.try(
+      auth_transform.token_response_decoder(token_data)
+      |> result.map_error(fn(err) {
+        logger.log_error_with_context("oauth:request_token", err)
+        "Failed to decode token"
+      }),
+    )
+
+    Ok(decoded_token)
+  }
+
+  case token {
+    Ok(token) -> Ok(token)
+    Error(message) -> Error(wisp.json_response(message, 500))
   }
 }
 
@@ -74,16 +91,13 @@ pub fn build_login_response(form_data: LoginFormData) {
   let token_response = request_token(login_request)
 
   use token <- result.try(token_response)
-  use user_response <- result.try(user_service.request_get_user(
-    token.access_token,
-  ))
 
-  case user_transform.user_decoder(user_response) {
+  case user_service.request_get_user(token.access_token) {
     Ok(user) -> {
       let login_response = LoginResponse(token: token, user: user)
       let json_body = auth_transform.login_response_encoder(login_response)
       Ok(wisp.json_response(json.to_string(json_body), 200))
     }
-    Error(_) -> Error(wisp.json_response("Failed to decode user info", 500))
+    Error(message) -> Error(wisp.json_response(message, 500))
   }
 }

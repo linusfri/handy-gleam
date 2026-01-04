@@ -46,8 +46,10 @@ pub fn logout(req: Request, user: User) {
     )
 
   case api_client.send_request(user_logout_request) {
-    Ok(_) -> wisp.json_response("User logged out", 204)
-    Error(wisp_error) -> wisp_error
+    Ok(res) if res.status > 200 && res.status < 300 ->
+      wisp.json_response("User logged out", res.status)
+    Ok(res) -> wisp.json_response(res.body, res.status)
+    Error(error_message) -> wisp.json_response(error_message, 500)
   }
 }
 
