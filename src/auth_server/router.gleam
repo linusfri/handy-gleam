@@ -58,6 +58,10 @@ pub fn handle_request(req: Request, ctx: web.Context) -> Response {
         _ -> wisp.method_not_allowed(allowed: [Delete])
       }
     }
+    ["facebook-instagram"], method -> {
+      use req, user <- web.authenticated_middleware(req)
+      todo
+    }
     _, _ -> wisp.json_response("Not found", 404)
   }
 }

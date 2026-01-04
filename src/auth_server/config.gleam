@@ -10,6 +10,11 @@ pub type Config {
     admin_endpoint: String,
     pghost: String,
     static_directory: String,
+    facebook_base_url: String,
+    facebook_app_id: String,
+    facebook_redirect_uri: String,
+    facebook_state_param: String,
+    facebook_app_secret: String,
   )
 }
 
@@ -20,6 +25,11 @@ pub fn get_config() -> Config {
     "ADMIN_ENDPOINT",
     "PGHOST",
     "STATIC_DIRECTORY",
+    "FACEBOOK_BASE_URL",
+    "FACEBOOK_APP_ID",
+    "FACEBOOK_REDIRECT_URI",
+    "FACEBOOK_STATE_PARAM",
+    "FACEBOOK_APP_SECRET",
   ]
 
   list.each(envs, fn(env) {
@@ -37,7 +47,24 @@ pub fn get_config() -> Config {
   let assert Ok(admin_endpoint) = envoy.get("ADMIN_ENDPOINT")
   let assert Ok(pghost) = envoy.get("PGHOST")
   let assert Ok(static_directory) = envoy.get("STATIC_DIRECTORY")
-  Config(secret_key, auth_endpoint, admin_endpoint, pghost, static_directory)
+  let assert Ok(facebook_base_url) = envoy.get("FACEBOOK_BASE_URL")
+  let assert Ok(facebook_app_id) = envoy.get("FACEBOOK_APP_ID")
+  let assert Ok(facebook_redirect_uri) = envoy.get("FACEBOOK_REDIRECT_URI")
+  let assert Ok(facebook_state_param) = envoy.get("FACEBOOK_STATE_PARAM")
+  let assert Ok(facebook_app_secret) = envoy.get("FACEBOOK_APP_SECRET")
+
+  Config(
+    secret_key,
+    auth_endpoint,
+    admin_endpoint,
+    pghost,
+    static_directory,
+    facebook_base_url,
+    facebook_app_id,
+    facebook_redirect_uri,
+    facebook_state_param,
+    facebook_app_secret,
+  )
 }
 
 pub fn static_directory() -> String {
