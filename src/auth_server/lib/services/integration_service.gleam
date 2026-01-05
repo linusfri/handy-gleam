@@ -82,7 +82,27 @@ pub fn request_long_lived_facebook_token(
     )
 
     Ok(wisp.html_response(
-      "<html><body><h1>Successfully connected Facebook!</h1><script>window.close()</script></body></html>",
+      "<html>
+        <style>
+          body {
+            padding: 16px;
+            display: flex;
+            flex-grow: 1;
+            align-items: center;
+            justify-content: center;
+          }
+
+          h1 {
+            font-size: 4.8rem;
+            text-align: center;
+            color: #009966;
+          }
+        </style>
+        <body>
+          <h1>Successfully connected Facebook!</h1>
+        </body>
+      </html>
+      ",
       200,
     ))
   }
