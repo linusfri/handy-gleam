@@ -1,6 +1,6 @@
 import auth_server/lib/auth/auth_utils
 import auth_server/lib/integration/facebook_instagram
-import auth_server/lib/integration/utils as integration_utils
+import auth_server/lib/user/transform as user_transform
 import auth_server/lib/user/types.{type User}
 import auth_server/lib/user/user
 import auth_server/lib/utils/logger
@@ -120,15 +120,12 @@ pub fn get_facebook_user(
   user: User,
   integration: sql.IntegrationPlatform,
 ) {
-  use facebook_token <- result.try(
-    integration_utils.get_integration_token(ctx, user, integration)
-    |> result.map_error(fn(error) {
-      logger.log_error_with_context(
-        "integration_service:get_facebook_user",
-        error,
+  case facebook_instagram.get_facebook_user(ctx, user, integration) {
+    Ok(facebook_user) ->
+      wisp.json_response(
+        json.to_string(user_transform.facebook_user_to_json(facebook_user)),
+        200,
       )
-      "Could not get facebook token from database."
-    }),
-  )
-  todo
+    Error(message) -> wisp.json_response(message, 500)
+  }
 }

@@ -3,6 +3,7 @@ import auth_server/lib/services/file_service
 import auth_server/lib/services/integration_service
 import auth_server/lib/services/product_service
 import auth_server/lib/user/user
+import auth_server/sql
 import auth_server/types as base_types
 import auth_server/web
 import gleam/http.{Delete, Get, Post, Put}
@@ -70,6 +71,13 @@ pub fn handle_request(req: Request, ctx: base_types.Context) -> Response {
     ["facebook-instagram", "long-lived-token"], method -> {
       case method {
         Get -> integration_service.request_long_lived_facebook_token(req, ctx)
+        _ -> wisp.method_not_allowed(allowed: [Get])
+      }
+    }
+    ["facebook-instagram", "user"], method -> {
+      use _, user <- web.authenticated_middleware(req)
+      case method {
+        Get -> integration_service.get_facebook_user(ctx, user, sql.Facebook)
         _ -> wisp.method_not_allowed(allowed: [Get])
       }
     }

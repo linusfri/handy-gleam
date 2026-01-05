@@ -1,4 +1,6 @@
-import auth_server/lib/user/types.{type User, User}
+import auth_server/lib/user/types.{
+  type FacebookUser, type User, FacebookUser, User,
+}
 import gleam/dynamic.{type Dynamic}
 import gleam/dynamic/decode
 import gleam/json
@@ -39,4 +41,22 @@ pub fn user_encoder(user: User) -> json.Json {
     #("family_name", json.string(user.family_name)),
     #("email", json.string(user.email)),
   ])
+}
+
+pub fn facebook_user_to_json(facebook_user: FacebookUser) -> json.Json {
+  let FacebookUser(id:, name:) = facebook_user
+  json.object([
+    #("id", json.string(id)),
+    #("name", json.string(name)),
+  ])
+}
+
+pub fn facebook_user_decoder(dynamic_user: dynamic.Dynamic) {
+  let facebook_user_decoder = {
+    use id <- decode.field("id", decode.string)
+    use name <- decode.field("name", decode.string)
+    decode.success(FacebookUser(id:, name:))
+  }
+
+  decode.run(dynamic_user, facebook_user_decoder)
 }

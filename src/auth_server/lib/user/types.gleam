@@ -10,3 +10,7 @@ pub type User {
     email: String,
   )
 }
+
+pub type FacebookUser {
+  FacebookUser(id: String, name: String)
+}

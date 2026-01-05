@@ -1,15 +1,20 @@
 import auth_server/config.{config}
 import auth_server/lib/auth/auth_utils
-import auth_server/lib/integration/transform
-import auth_server/lib/integration/types
+import auth_server/lib/integration/transform as integration_transform
+import auth_server/lib/integration/types as integration_types
+import auth_server/lib/integration/utils as integration_utils
+import auth_server/lib/user/transform as user_transform
+import auth_server/lib/user/types as user_types
 import auth_server/lib/utils/api_client
 import auth_server/lib/utils/logger
+import auth_server/sql
+import auth_server/types as base_types
 import gleam/dynamic/decode
 import gleam/http
 import gleam/http/request
 import gleam/json
 import gleam/list
-import gleam/option.{None}
+import gleam/option.{None, Some}
 import gleam/result
 import wisp
 
@@ -55,7 +60,7 @@ pub fn initiate_login(
 
 pub fn exchange_code_for_token(
   code: String,
-) -> Result(types.FacebookToken, String) {
+) -> Result(integration_types.FacebookToken, String) {
   let token_request =
     request.Request(
       method: http.Get,
@@ -86,7 +91,7 @@ pub fn exchange_code_for_token(
         }),
       )
 
-      transform.facebook_token_decoder(json_data)
+      integration_transform.facebook_token_decoder(json_data)
       |> result.map_error(fn(err) {
         logger.log_error_with_context(
           "facebook_instagram:exchange_code_for_token",
@@ -96,5 +101,72 @@ pub fn exchange_code_for_token(
       })
     }
     _ -> Error("Facebook API error: " <> response.body)
+  }
+}
+
+pub fn get_facebook_user(
+  ctx: base_types.Context,
+  user: user_types.User,
+  integration: sql.IntegrationPlatform,
+) {
+  use facebook_token <- result.try(
+    integration_utils.get_integration_token(ctx, user, integration)
+    |> result.map_error(fn(error) {
+      logger.log_error_with_context(
+        "integration_service:get_facebook_user",
+        error,
+      )
+      "Could not get facebook token from database."
+    }),
+  )
+
+  let user_request =
+    request.Request(
+      method: http.Get,
+      headers: [],
+      body: "",
+      scheme: http.Https,
+      host: config().facebook_base_url,
+      port: None,
+      path: "/me",
+      query: Some("access_token=" <> facebook_token.access_token),
+    )
+
+  let facebook_user = {
+    use user_response <- result.try(case api_client.send_request(user_request) {
+      Ok(response) -> Ok(response)
+      Error(error_response) -> Error(error_response <> error_response)
+    })
+
+    echo user_response
+
+    use dynamic_user <- result.try(
+      json.parse(user_response.body, decode.dynamic)
+      |> result.map_error(fn(error) {
+        logger.log_error_with_context(
+          "facebook_instagram:get_facebook_user",
+          error,
+        )
+        "Could not get user from facebook api response"
+      }),
+    )
+
+    use user <- result.try(
+      user_transform.facebook_user_decoder(dynamic_user)
+      |> result.map_error(fn(error) {
+        logger.log_error_with_context(
+          "facebook_instagram:get_facebook_user",
+          error,
+        )
+        "Failed to decode facebook user from reponse"
+      }),
+    )
+
+    Ok(user)
+  }
+
+  case facebook_user {
+    Ok(facebook_user) -> Ok(facebook_user)
+    Error(error) -> Error(error)
   }
 }
