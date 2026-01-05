@@ -2,7 +2,7 @@ import auth_server/lib/file/file
 import auth_server/lib/file/transform as file_transform
 import auth_server/lib/user/types.{type User}
 import auth_server/lib/utils/logger
-import auth_server/web
+import auth_server/types as base_types
 import gleam/http
 import gleam/http/request
 import gleam/int
@@ -14,7 +14,7 @@ import wisp
 
 pub fn delete_file(
   req: request.Request(wisp.Connection),
-  ctx: web.Context,
+  ctx: base_types.Context,
   user: User,
   file_id_str: String,
 ) -> wisp.Response {
@@ -48,7 +48,7 @@ pub fn delete_file(
 
 pub fn get_files(
   _req: request.Request(wisp.Connection),
-  ctx: web.Context,
+  ctx: base_types.Context,
   user: User,
 ) {
   case file.get_files(db: ctx.db, file_types: [], user: user) {
@@ -69,7 +69,7 @@ pub fn get_files(
 
 pub fn create_files(
   req: request.Request(wisp.Connection),
-  ctx: web.Context,
+  ctx: base_types.Context,
   user: User,
 ) {
   use <- wisp.require_method(req, http.Post)

@@ -2,12 +2,7 @@ import auth_server/config.{config}
 import auth_server/lib/user/types.{type User}
 import auth_server/lib/user/user
 import auth_server/lib/utils/logger
-import pog
 import wisp
-
-pub type Context {
-  Context(db: pog.Connection)
-}
 
 pub fn middleware(
   req: wisp.Request,

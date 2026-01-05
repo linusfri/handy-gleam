@@ -2,7 +2,7 @@ import auth_server/lib/product/product
 import auth_server/lib/product/transform
 import auth_server/lib/user/types.{type User}
 import auth_server/lib/utils/logger
-import auth_server/web
+import auth_server/types as base_types
 import gleam/http
 import gleam/http/request
 import gleam/int
@@ -12,7 +12,7 @@ import gleam/result
 import gleam/string
 import wisp
 
-pub fn get_products(ctx: web.Context, user: User) {
+pub fn get_products(ctx: base_types.Context, user: User) {
   case product.get_products(ctx, user) {
     Ok(products) -> {
       products
@@ -30,7 +30,7 @@ pub fn get_products(ctx: web.Context, user: User) {
 
 pub fn create_product(
   req: request.Request(wisp.Connection),
-  ctx: web.Context,
+  ctx: base_types.Context,
   user: User,
 ) {
   use <- wisp.require_method(req, http.Post)
@@ -47,7 +47,7 @@ pub fn create_product(
 
 pub fn delete_product(
   req: request.Request(wisp.Connection),
-  ctx: web.Context,
+  ctx: base_types.Context,
   user: User,
   product_id_str: String,
 ) -> wisp.Response {
@@ -74,7 +74,7 @@ pub fn delete_product(
 
 pub fn get_product(
   req: request.Request(wisp.Connection),
-  ctx: web.Context,
+  ctx: base_types.Context,
   user: User,
   product_id_str: String,
 ) -> wisp.Response {
@@ -113,7 +113,7 @@ pub fn get_product(
 
 pub fn update_product(
   req req: request.Request(wisp.Connection),
-  ctx ctx: web.Context,
+  ctx ctx: base_types.Context,
   user user: User,
   product_id product_id_str: String,
 ) {

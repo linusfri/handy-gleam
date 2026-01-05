@@ -2,7 +2,7 @@ import auth_server/config.{config}
 import auth_server/database/database
 import auth_server/lib/utils/hot_reload.{enable_hot_reload}
 import auth_server/router
-import auth_server/web
+import auth_server/types as base_types
 import gleam/erlang/process
 import mist
 import pog
@@ -16,7 +16,7 @@ pub fn main() {
   let assert Ok(_) = database.start_application_supervisor(db_name)
   let db = pog.named_connection(db_name)
 
-  let ctx = web.Context(db)
+  let ctx = base_types.Context(db)
 
   let _ = enable_hot_reload()
   let handler = router.handle_request(_, ctx)

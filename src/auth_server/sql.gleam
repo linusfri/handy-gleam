@@ -251,14 +251,19 @@ pub fn create_user_integration_token(
   let decoder = decode.map(decode.dynamic, fn(_) { Nil })
 
   "-- name: create_user_integration_token :exec
-INSERT INTO user_integration_tokens (user_id, platform, access_token, token_type)
-VALUES ($1, $2, $3, $4)
-ON CONFLICT (user_id, platform) 
-DO UPDATE SET 
-  access_token = EXCLUDED.access_token,
-  token_type = EXCLUDED.token_type,
-  updated_at = NOW();
-"
+insert into
+    user_integration_tokens (
+        user_id,
+        platform,
+        access_token,
+        token_type
+    )
+values ($1, $2, $3, $4) on conflict (user_id, platform) do
+update
+set
+    access_token = excluded.access_token,
+    token_type = excluded.token_type,
+    updated_at = now();"
   |> pog.query
   |> pog.parameter(pog.text(arg_1))
   |> pog.parameter(integration_platform_encoder(arg_2))
@@ -635,6 +640,64 @@ order by
   |> pog.execute(db)
 }
 
+/// A row you get from running the `select_user_integration_token` query
+/// defined in `./src/auth_server/sql/select_user_integration_token.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.6.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type SelectUserIntegrationTokenRow {
+  SelectUserIntegrationTokenRow(
+    id: Int,
+    user_id: String,
+    platform: IntegrationPlatform,
+    access_token: String,
+    token_type: Option(String),
+    updated_at: Option(Timestamp),
+  )
+}
+
+/// name: select_user_integration_token
+///
+/// > 🐿️ This function was generated automatically using v4.6.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn select_user_integration_token(
+  db: pog.Connection,
+  arg_1: String,
+  arg_2: IntegrationPlatform,
+) -> Result(pog.Returned(SelectUserIntegrationTokenRow), pog.QueryError) {
+  let decoder = {
+    use id <- decode.field(0, decode.int)
+    use user_id <- decode.field(1, decode.string)
+    use platform <- decode.field(2, integration_platform_decoder())
+    use access_token <- decode.field(3, decode.string)
+    use token_type <- decode.field(4, decode.optional(decode.string))
+    use updated_at <- decode.field(5, decode.optional(pog.timestamp_decoder()))
+    decode.success(SelectUserIntegrationTokenRow(
+      id:,
+      user_id:,
+      platform:,
+      access_token:,
+      token_type:,
+      updated_at:,
+    ))
+  }
+
+  "-- name: select_user_integration_token
+select *
+from user_integration_tokens
+where
+    user_id = $1
+    and platform = $2
+limit 1;"
+  |> pog.query
+  |> pog.parameter(pog.text(arg_1))
+  |> pog.parameter(integration_platform_encoder(arg_2))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
 /// A row you get from running the `update_product` query
 /// defined in `./src/auth_server/sql/update_product.sql`.
 ///
@@ -779,6 +842,15 @@ fn file_type_enum_encoder(file_type_enum) -> pog.Value {
 pub type IntegrationPlatform {
   Facebook
   Instagram
+}
+
+fn integration_platform_decoder() -> decode.Decoder(IntegrationPlatform) {
+  use integration_platform <- decode.then(decode.string)
+  case integration_platform {
+    "facebook" -> decode.success(Facebook)
+    "instagram" -> decode.success(Instagram)
+    _ -> decode.failure(Facebook, "IntegrationPlatform")
+  }
 }
 
 fn integration_platform_encoder(integration_platform) -> pog.Value {

@@ -1,9 +1,11 @@
 import auth_server/lib/auth/auth_utils
 import auth_server/lib/integration/facebook_instagram
+import auth_server/lib/integration/utils as integration_utils
+import auth_server/lib/user/types.{type User}
 import auth_server/lib/user/user
 import auth_server/lib/utils/logger
 import auth_server/sql
-import auth_server/web.{type Context}
+import auth_server/types as base_types
 import gleam/http/request
 import gleam/json
 import gleam/list
@@ -32,7 +34,7 @@ pub fn initiate_facebook_login(req: request.Request(wisp.Connection)) {
 
 pub fn request_long_lived_facebook_token(
   req: request.Request(wisp.Connection),
-  ctx: Context,
+  ctx: base_types.Context,
 ) {
   let code = list.key_find(wisp.get_query(req), "code") |> result.unwrap("")
 
@@ -111,4 +113,22 @@ pub fn request_long_lived_facebook_token(
     Ok(response) -> response
     Error(error_response) -> error_response
   }
+}
+
+pub fn get_facebook_user(
+  ctx: base_types.Context,
+  user: User,
+  integration: sql.IntegrationPlatform,
+) {
+  use facebook_token <- result.try(
+    integration_utils.get_integration_token(ctx, user, integration)
+    |> result.map_error(fn(error) {
+      logger.log_error_with_context(
+        "integration_service:get_facebook_user",
+        error,
+      )
+      "Could not get facebook token from database."
+    }),
+  )
+  todo
 }

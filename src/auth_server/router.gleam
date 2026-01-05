@@ -3,11 +3,12 @@ import auth_server/lib/services/file_service
 import auth_server/lib/services/integration_service
 import auth_server/lib/services/product_service
 import auth_server/lib/user/user
+import auth_server/types as base_types
 import auth_server/web
 import gleam/http.{Delete, Get, Post, Put}
 import wisp.{type Request, type Response}
 
-pub fn handle_request(req: Request, ctx: web.Context) -> Response {
+pub fn handle_request(req: Request, ctx: base_types.Context) -> Response {
   use req <- web.middleware(req)
 
   case wisp.path_segments(req), req.method {
@@ -76,7 +77,7 @@ pub fn handle_request(req: Request, ctx: web.Context) -> Response {
   }
 }
 
-fn home_page(req: Request, _: web.Context) -> Response {
+fn home_page(req: Request, _: base_types.Context) -> Response {
   use <- wisp.require_method(req, Get)
   wisp.json_response("Ping", 200)
 }

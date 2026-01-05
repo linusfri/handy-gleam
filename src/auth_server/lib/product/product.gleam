@@ -1,7 +1,7 @@
 import auth_server/lib/product/transform
 import auth_server/lib/user/types.{type User}
 import auth_server/sql.{type SelectProductsRow, SelectProductsRow}
-import auth_server/web
+import auth_server/types as base_types
 import gleam/dynamic.{type Dynamic}
 import gleam/option
 import gleam/result
@@ -11,7 +11,7 @@ import pog
 pub fn create_product(
   data data: Dynamic,
   user user: User,
-  context ctx: web.Context,
+  context ctx: base_types.Context,
 ) -> Result(Nil, String) {
   use product_request <- result.try(
     transform.product_mutation_request_decoder(data)
@@ -56,7 +56,7 @@ pub fn create_product(
 pub fn update_product(
   product_id product_id: Int,
   product_data product_data: Dynamic,
-  context ctx: web.Context,
+  context ctx: base_types.Context,
   user user: User,
 ) {
   use product_edit_request <- result.try(
@@ -105,7 +105,7 @@ pub fn update_product(
 
 pub fn delete_product(
   product_id product_id: Int,
-  context ctx: web.Context,
+  context ctx: base_types.Context,
   user user: User,
 ) -> Result(Nil, String) {
   pog.transaction(ctx.db, fn(tx) {
@@ -123,7 +123,7 @@ pub fn delete_product(
 
 pub fn get_product_by_id(
   product_id product_id: Int,
-  context ctx: web.Context,
+  context ctx: base_types.Context,
   user user: User,
 ) -> Result(SelectProductsRow, String) {
   pog.transaction(ctx.db, fn(tx) {
@@ -156,7 +156,7 @@ pub fn get_product_by_id(
 }
 
 pub fn get_products(
-  ctx: web.Context,
+  ctx: base_types.Context,
   user: User,
 ) -> Result(List(SelectProductsRow), String) {
   pog.transaction(ctx.db, fn(tx) {
