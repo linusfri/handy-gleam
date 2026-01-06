@@ -138,8 +138,6 @@ pub fn get_facebook_user(
       Error(error_response) -> Error(error_response <> error_response)
     })
 
-    echo user_response
-
     use dynamic_user <- result.try(
       json.parse(user_response.body, decode.dynamic)
       |> result.map_error(fn(error) {
