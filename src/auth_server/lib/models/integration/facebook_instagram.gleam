@@ -76,6 +76,7 @@ pub fn exchange_code_for_token(
       #("client_id", config().facebook_app_id),
       #("client_secret", config().facebook_app_secret),
       #("redirect_uri", config().facebook_redirect_uri),
+      #("fields", "expires_in,access_token,token_type"),
       #("code", code),
     ])
 
@@ -166,5 +167,72 @@ pub fn get_facebook_user(
   case facebook_user {
     Ok(facebook_user) -> Ok(facebook_user)
     Error(error) -> Error(error)
+  }
+}
+
+pub fn get_current_facebook_user_pages(
+  ctx: global_types.Context,
+  user: user_types.User,
+  integration: sql.IntegrationPlatform,
+) {
+  use facebook_token <- result.try(
+    integration_utils.get_integration_token(ctx, user, integration)
+    |> result.map_error(fn(error) {
+      logger.log_error_with_context(
+        "integration_service:get_facebook_user",
+        error,
+      )
+      "Could not get facebook token from database."
+    }),
+  )
+
+  let user_pages_request =
+    request.Request(
+      method: http.Get,
+      headers: [],
+      body: "",
+      scheme: http.Https,
+      host: config().facebook_base_url,
+      port: None,
+      path: "/me/accounts",
+      query: Some("access_token=" <> facebook_token.access_token),
+    )
+
+  let facebook_pages = {
+    use user_response <- result.try(
+      case api_client.send_request(user_pages_request) {
+        Ok(response) -> Ok(response)
+        Error(error_response) -> Error(error_response <> error_response)
+      },
+    )
+
+    use dynamic_pages <- result.try(
+      json.parse(user_response.body, decode.dynamic)
+      |> result.map_error(fn(error) {
+        logger.log_error_with_context(
+          "facebook_instagram:get_current_facebook_user_pages",
+          error,
+        )
+        "Could not get user from facebook api response"
+      }),
+    )
+
+    use pages <- result.try(
+      integration_transform.facebook_pages_response_decoder(dynamic_pages)
+      |> result.map_error(fn(error) {
+        logger.log_error_with_context(
+          "facebook_instagram:get_current_facebook_user_pages",
+          error,
+        )
+        "Failed to decode facebook user from reponse"
+      }),
+    )
+
+    Ok(pages)
+  }
+
+  case facebook_pages {
+    Ok(pages) -> Ok(pages)
+    Error(error_message) -> Error(error_message)
   }
 }

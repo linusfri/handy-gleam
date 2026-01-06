@@ -1,6 +1,7 @@
 import auth_server/global_types
 import auth_server/lib/models/auth/auth_utils
 import auth_server/lib/models/integration/facebook_instagram
+import auth_server/lib/models/integration/integration_transform
 import auth_server/lib/models/user/user
 import auth_server/lib/models/user/user_transform
 import auth_server/lib/models/user/user_types.{type User}
@@ -127,5 +128,26 @@ pub fn get_facebook_user(
         200,
       )
     Error(message) -> wisp.json_response(message, 500)
+  }
+}
+
+pub fn get_current_facebook_user_pages(
+  ctx: global_types.Context,
+  user: User,
+  integration: sql.IntegrationPlatform,
+) {
+  case
+    facebook_instagram.get_current_facebook_user_pages(ctx, user, integration)
+  {
+    Ok(pages) ->
+      wisp.json_response(
+        json.to_string(integration_transform.facebook_pages_response_to_json(
+          pages,
+        )),
+        200,
+      )
+    Error(error_message) -> {
+      wisp.json_response(error_message, 500)
+    }
   }
 }

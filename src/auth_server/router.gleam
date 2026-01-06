@@ -81,6 +81,18 @@ pub fn handle_request(req: Request, ctx: global_types.Context) -> Response {
         _ -> wisp.method_not_allowed(allowed: [Get])
       }
     }
+    ["facebook-instagram", "user", "pages"], method -> {
+      use _, user <- web.authenticated_middleware(req)
+      case method {
+        Get ->
+          integration_service.get_current_facebook_user_pages(
+            ctx,
+            user,
+            sql.Facebook,
+          )
+        _ -> wisp.method_not_allowed(allowed: [Get])
+      }
+    }
     _, _ -> wisp.json_response("Not found", 404)
   }
 }
