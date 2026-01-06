@@ -1,7 +1,7 @@
-import auth_server/lib/auth/auth_utils
+import auth_server/lib/models/auth/auth_utils
+import auth_server/lib/models/user/user_transform.{user_encoder}
+import auth_server/lib/models/user/user_types.{type User}
 import auth_server/lib/services/user_service
-import auth_server/lib/user/transform.{user_encoder}
-import auth_server/lib/user/types.{type User}
 import gleam/json
 
 /// Gets a wisp response containing an encoded user for json response

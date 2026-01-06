@@ -1,7 +1,7 @@
-import auth_server/lib/file/transform as file_transform
-import auth_server/lib/file/types as file_types
-import auth_server/lib/file_system/file_system
-import auth_server/lib/user/types.{type User}
+import auth_server/lib/models/file/file_transform
+import auth_server/lib/models/file/file_types
+import auth_server/lib/models/file_system/file_system
+import auth_server/lib/models/user/user_types.{type User}
 import auth_server/sql
 import gleam/dynamic
 import gleam/list

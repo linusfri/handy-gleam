@@ -1,12 +1,12 @@
-import auth_server/lib/user/types.{type User}
+import auth_server/global_types
+import auth_server/lib/models/user/user_types.{type User}
 import auth_server/sql
-import auth_server/types as base_types
 import gleam/result
 import gleam/string
 import pog
 
 pub fn get_integration_token(
-  ctx: base_types.Context,
+  ctx: global_types.Context,
   user: User,
   integration: sql.IntegrationPlatform,
 ) {

@@ -1,5 +1,5 @@
 import auth_server/config.{config}
-import auth_server/lib/file/types.{type File}
+import auth_server/lib/models/file/file_types.{type File}
 import auth_server/lib/utils/logger
 import auth_server/sql
 import gleam/bit_array
@@ -109,8 +109,8 @@ pub fn file_url_from_file(file: File) -> String {
 
 pub fn file_url(
   filename: String,
-  context_type: types.ContextType,
-  file_type: types.FileType,
+  context_type: file_types.ContextType,
+  file_type: file_types.FileType,
 ) {
   let static_files_directory = config().static_directory
 

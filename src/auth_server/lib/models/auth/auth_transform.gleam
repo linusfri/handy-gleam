@@ -1,7 +1,7 @@
-import auth_server/lib/auth/types.{
+import auth_server/lib/models/auth/auth_types.{
   type LoginResponse, type TokenResponse, LoginFormData, TokenResponse,
 }
-import auth_server/lib/user/transform as user_transform
+import auth_server/lib/models/user/user_transform
 import gleam/dynamic.{type Dynamic}
 import gleam/dynamic/decode
 import gleam/json
@@ -66,7 +66,7 @@ pub fn refresh_token_request_decoder(json_data: Dynamic) {
     use refresh_token <- decode.field("refresh_token", decode.string)
     let client_id = "auth-server"
 
-    decode.success(types.RefreshTokenRequest(refresh_token:, client_id:))
+    decode.success(auth_types.RefreshTokenRequest(refresh_token:, client_id:))
   }
 
   decode.run(json_data, refresh_token_decoder)

@@ -1,14 +1,14 @@
 import auth_server/config.{config}
-import auth_server/lib/auth/auth_utils
-import auth_server/lib/integration/transform as integration_transform
-import auth_server/lib/integration/types as integration_types
-import auth_server/lib/integration/utils as integration_utils
-import auth_server/lib/user/transform as user_transform
-import auth_server/lib/user/types as user_types
+import auth_server/global_types
+import auth_server/lib/models/auth/auth_utils
+import auth_server/lib/models/integration/integration_transform
+import auth_server/lib/models/integration/integration_types
+import auth_server/lib/models/integration/integration_utils
+import auth_server/lib/models/user/user_transform
+import auth_server/lib/models/user/user_types
 import auth_server/lib/utils/api_client
 import auth_server/lib/utils/logger
 import auth_server/sql
-import auth_server/types as base_types
 import gleam/dynamic/decode
 import gleam/http
 import gleam/http/request
@@ -105,7 +105,7 @@ pub fn exchange_code_for_token(
 }
 
 pub fn get_facebook_user(
-  ctx: base_types.Context,
+  ctx: global_types.Context,
   user: user_types.User,
   integration: sql.IntegrationPlatform,
 ) {

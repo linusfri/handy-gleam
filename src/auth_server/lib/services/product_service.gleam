@@ -1,8 +1,8 @@
-import auth_server/lib/product/product
-import auth_server/lib/product/transform
-import auth_server/lib/user/types.{type User}
+import auth_server/global_types
+import auth_server/lib/models/product/product
+import auth_server/lib/models/product/product_transform
+import auth_server/lib/models/user/user_types.{type User}
 import auth_server/lib/utils/logger
-import auth_server/types as base_types
 import gleam/http
 import gleam/http/request
 import gleam/int
@@ -12,11 +12,11 @@ import gleam/result
 import gleam/string
 import wisp
 
-pub fn get_products(ctx: base_types.Context, user: User) {
+pub fn get_products(ctx: global_types.Context, user: User) {
   case product.get_products(ctx, user) {
     Ok(products) -> {
       products
-      |> list.map(transform.product_to_json)
+      |> list.map(product_transform.product_to_json)
       |> json.array(of: fn(json_product) { json_product })
       |> json.to_string
       |> wisp.json_response(200)
@@ -30,7 +30,7 @@ pub fn get_products(ctx: base_types.Context, user: User) {
 
 pub fn create_product(
   req: request.Request(wisp.Connection),
-  ctx: base_types.Context,
+  ctx: global_types.Context,
   user: User,
 ) {
   use <- wisp.require_method(req, http.Post)
@@ -47,7 +47,7 @@ pub fn create_product(
 
 pub fn delete_product(
   req: request.Request(wisp.Connection),
-  ctx: base_types.Context,
+  ctx: global_types.Context,
   user: User,
   product_id_str: String,
 ) -> wisp.Response {
@@ -74,7 +74,7 @@ pub fn delete_product(
 
 pub fn get_product(
   req: request.Request(wisp.Connection),
-  ctx: base_types.Context,
+  ctx: global_types.Context,
   user: User,
   product_id_str: String,
 ) -> wisp.Response {
@@ -92,7 +92,7 @@ pub fn get_product(
   case get_product_result {
     Ok(product) -> {
       wisp.json_response(
-        json.to_string(transform.product_to_json(product)),
+        json.to_string(product_transform.product_to_json(product)),
         200,
       )
     }
@@ -113,7 +113,7 @@ pub fn get_product(
 
 pub fn update_product(
   req req: request.Request(wisp.Connection),
-  ctx ctx: base_types.Context,
+  ctx ctx: global_types.Context,
   user user: User,
   product_id product_id_str: String,
 ) {

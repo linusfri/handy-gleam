@@ -1,6 +1,6 @@
-import auth_server/lib/file/transform as file_transform
-import auth_server/lib/file/types.{type File, File}
-import auth_server/lib/file_system/file_system
+import auth_server/lib/models/file/file_transform
+import auth_server/lib/models/file/file_types.{type File, File}
+import auth_server/lib/models/file_system/file_system
 import auth_server/sql.{type ProductStatus, Available, Sold}
 import gleam/dynamic.{type Dynamic}
 import gleam/dynamic/decode

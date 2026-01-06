@@ -1,6 +1,6 @@
 import auth_server/config.{config}
-import auth_server/lib/user/types.{type User}
-import auth_server/lib/user/user
+import auth_server/lib/models/user/user
+import auth_server/lib/models/user/user_types.{type User}
 import auth_server/lib/utils/logger
 import wisp
 

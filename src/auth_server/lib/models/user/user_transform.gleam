@@ -1,4 +1,4 @@
-import auth_server/lib/user/types.{
+import auth_server/lib/models/user/user_types.{
   type FacebookUser, type User, FacebookUser, User,
 }
 import gleam/dynamic.{type Dynamic}

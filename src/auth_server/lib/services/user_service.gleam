@@ -1,6 +1,6 @@
 import auth_server/config.{config}
-import auth_server/lib/auth/auth_utils
-import auth_server/lib/user/transform as user_transform
+import auth_server/lib/models/auth/auth_utils
+import auth_server/lib/models/user/user_transform
 import auth_server/lib/utils/api_client
 import auth_server/lib/utils/logger
 import gleam/dynamic/decode

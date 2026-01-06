@@ -1,8 +1,8 @@
-import auth_server/lib/file/types.{
+import auth_server/lib/models/file/file_types.{
   type ContextType, type File, type FileType, type FileUploadRequest, File,
   FileUploadRequest,
 }
-import auth_server/lib/file_system/file_system
+import auth_server/lib/models/file_system/file_system
 import auth_server/sql
 import gleam/dynamic
 import gleam/dynamic/decode

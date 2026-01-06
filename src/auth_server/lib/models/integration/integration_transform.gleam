@@ -1,4 +1,6 @@
-import auth_server/lib/integration/types.{type FacebookToken, FacebookToken}
+import auth_server/lib/models/integration/integration_types.{
+  type FacebookToken, FacebookToken,
+}
 import gleam/dynamic
 import gleam/dynamic/decode
 import gleam/json

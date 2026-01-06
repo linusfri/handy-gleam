@@ -1,8 +1,8 @@
 import auth_server/config.{config}
-import auth_server/lib/auth/auth_utils
-import auth_server/lib/auth/oauth
-import auth_server/lib/auth/transform as auth_transform
-import auth_server/lib/user/types.{type User}
+import auth_server/lib/models/auth/auth_transform
+import auth_server/lib/models/auth/auth_utils
+import auth_server/lib/models/auth/oauth
+import auth_server/lib/models/user/user_types.{type User}
 import auth_server/lib/utils/api_client
 import auth_server/lib/utils/logger
 import gleam/http.{Post}

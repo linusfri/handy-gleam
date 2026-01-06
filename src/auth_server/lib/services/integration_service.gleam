@@ -1,11 +1,11 @@
-import auth_server/lib/auth/auth_utils
-import auth_server/lib/integration/facebook_instagram
-import auth_server/lib/user/transform as user_transform
-import auth_server/lib/user/types.{type User}
-import auth_server/lib/user/user
+import auth_server/global_types
+import auth_server/lib/models/auth/auth_utils
+import auth_server/lib/models/integration/facebook_instagram
+import auth_server/lib/models/user/user
+import auth_server/lib/models/user/user_transform
+import auth_server/lib/models/user/user_types.{type User}
 import auth_server/lib/utils/logger
 import auth_server/sql
-import auth_server/types as base_types
 import gleam/http/request
 import gleam/json
 import gleam/list
@@ -34,7 +34,7 @@ pub fn initiate_facebook_login(req: request.Request(wisp.Connection)) {
 
 pub fn request_long_lived_facebook_token(
   req: request.Request(wisp.Connection),
-  ctx: base_types.Context,
+  ctx: global_types.Context,
 ) {
   let code = list.key_find(wisp.get_query(req), "code") |> result.unwrap("")
 
@@ -116,7 +116,7 @@ pub fn request_long_lived_facebook_token(
 }
 
 pub fn get_facebook_user(
-  ctx: base_types.Context,
+  ctx: global_types.Context,
   user: User,
   integration: sql.IntegrationPlatform,
 ) {

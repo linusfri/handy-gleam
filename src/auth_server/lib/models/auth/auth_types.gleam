@@ -1,4 +1,4 @@
-import auth_server/lib/user/types.{type User}
+import auth_server/lib/models/user/user_types.{type User}
 
 pub type LoginFormData {
   LoginFormData(

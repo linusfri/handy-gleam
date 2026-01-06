@@ -1,8 +1,8 @@
-import auth_server/lib/auth/auth_utils
-import auth_server/lib/auth/transform as auth_transform
-import auth_server/lib/auth/types.{
+import auth_server/lib/models/auth/auth_transform
+import auth_server/lib/models/auth/auth_types.{
   type LoginFormData, type RefreshTokenRequest, LoginResponse,
 }
+import auth_server/lib/models/auth/auth_utils
 import auth_server/lib/services/user_service
 import auth_server/lib/utils/api_client
 import auth_server/lib/utils/logger
