@@ -120,6 +120,98 @@ returning id, file_id, user_group_id, created_at;"
   |> pog.execute(db)
 }
 
+/// A row you get from running the `create_or_update_platform_resources` query
+/// defined in `./src/auth_server/sql/create_or_update_platform_resources.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.6.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type CreateOrUpdatePlatformResourcesRow {
+  CreateOrUpdatePlatformResourcesRow(
+    id: Int,
+    user_id: String,
+    platform: IntegrationPlatform,
+    resource_type: ResourceTypeEnum,
+    external_id: String,
+    resource_name: Option(String),
+    resource_token: Option(String),
+    metadata: Option(String),
+    created_at: Option(Timestamp),
+    updated_at: Option(Timestamp),
+  )
+}
+
+/// Insert or update platform resources (like Facebook pages)
+///
+/// > 🐿️ This function was generated automatically using v4.6.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn create_or_update_platform_resources(
+  db: pog.Connection,
+  arg_1: String,
+  arg_2: IntegrationPlatform,
+  arg_3: ResourceTypeEnum,
+  arg_4: List(String),
+  arg_5: List(String),
+  arg_6: List(String),
+) -> Result(pog.Returned(CreateOrUpdatePlatformResourcesRow), pog.QueryError) {
+  let decoder = {
+    use id <- decode.field(0, decode.int)
+    use user_id <- decode.field(1, decode.string)
+    use platform <- decode.field(2, integration_platform_decoder())
+    use resource_type <- decode.field(3, resource_type_enum_decoder())
+    use external_id <- decode.field(4, decode.string)
+    use resource_name <- decode.field(5, decode.optional(decode.string))
+    use resource_token <- decode.field(6, decode.optional(decode.string))
+    use metadata <- decode.field(7, decode.optional(decode.string))
+    use created_at <- decode.field(8, decode.optional(pog.timestamp_decoder()))
+    use updated_at <- decode.field(9, decode.optional(pog.timestamp_decoder()))
+    decode.success(CreateOrUpdatePlatformResourcesRow(
+      id:,
+      user_id:,
+      platform:,
+      resource_type:,
+      external_id:,
+      resource_name:,
+      resource_token:,
+      metadata:,
+      created_at:,
+      updated_at:,
+    ))
+  }
+
+  "-- Insert or update platform resources (like Facebook pages)
+INSERT INTO platform_resources (user_id, platform, resource_type, external_id, resource_name, resource_token)
+SELECT 
+  $1::VARCHAR,
+  $2::integration_platform,
+  $3::resource_type_enum,
+  external_id,
+  resource_name,
+  resource_token
+FROM unnest(
+  $4::VARCHAR[],  -- external_ids
+  $5::VARCHAR[],  -- resource_names
+  $6::TEXT[]      -- resource_tokens
+) AS platform_resources(external_id, resource_name, resource_token)
+ON CONFLICT (user_id, platform, resource_type, external_id) 
+DO UPDATE SET 
+  resource_name = EXCLUDED.resource_name,
+  resource_token = EXCLUDED.resource_token,
+  updated_at = CURRENT_TIMESTAMP
+RETURNING id, user_id, platform, resource_type, external_id, resource_name, resource_token, metadata, created_at, updated_at;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(arg_1))
+  |> pog.parameter(integration_platform_encoder(arg_2))
+  |> pog.parameter(resource_type_enum_encoder(arg_3))
+  |> pog.parameter(pog.array(fn(value) { pog.text(value) }, arg_4))
+  |> pog.parameter(pog.array(fn(value) { pog.text(value) }, arg_5))
+  |> pog.parameter(pog.array(fn(value) { pog.text(value) }, arg_6))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
 /// A row you get from running the `create_product` query
 /// defined in `./src/auth_server/sql/create_product.sql`.
 ///
@@ -460,6 +552,148 @@ where
     file_user_group.user_group_id = any ($1);"
   |> pog.query
   |> pog.parameter(pog.array(fn(value) { pog.text(value) }, arg_1))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
+/// A row you get from running the `select_platform_resource` query
+/// defined in `./src/auth_server/sql/select_platform_resource.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.6.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type SelectPlatformResourceRow {
+  SelectPlatformResourceRow(
+    id: Int,
+    user_id: String,
+    platform: IntegrationPlatform,
+    resource_type: ResourceTypeEnum,
+    external_id: String,
+    resource_name: Option(String),
+    resource_token: Option(String),
+    metadata: Option(String),
+    created_at: Option(Timestamp),
+    updated_at: Option(Timestamp),
+  )
+}
+
+/// Get a specific platform resource by user_id, platform, and external_id
+///
+/// > 🐿️ This function was generated automatically using v4.6.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn select_platform_resource(
+  db: pog.Connection,
+  arg_1: String,
+  arg_2: IntegrationPlatform,
+  arg_3: String,
+) -> Result(pog.Returned(SelectPlatformResourceRow), pog.QueryError) {
+  let decoder = {
+    use id <- decode.field(0, decode.int)
+    use user_id <- decode.field(1, decode.string)
+    use platform <- decode.field(2, integration_platform_decoder())
+    use resource_type <- decode.field(3, resource_type_enum_decoder())
+    use external_id <- decode.field(4, decode.string)
+    use resource_name <- decode.field(5, decode.optional(decode.string))
+    use resource_token <- decode.field(6, decode.optional(decode.string))
+    use metadata <- decode.field(7, decode.optional(decode.string))
+    use created_at <- decode.field(8, decode.optional(pog.timestamp_decoder()))
+    use updated_at <- decode.field(9, decode.optional(pog.timestamp_decoder()))
+    decode.success(SelectPlatformResourceRow(
+      id:,
+      user_id:,
+      platform:,
+      resource_type:,
+      external_id:,
+      resource_name:,
+      resource_token:,
+      metadata:,
+      created_at:,
+      updated_at:,
+    ))
+  }
+
+  "-- Get a specific platform resource by user_id, platform, and external_id
+SELECT id, user_id, platform, resource_type, external_id, resource_name, resource_token, metadata, created_at, updated_at
+FROM platform_resources
+WHERE user_id = $1::VARCHAR 
+  AND platform = $2::integration_platform 
+  AND external_id = $3::VARCHAR;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(arg_1))
+  |> pog.parameter(integration_platform_encoder(arg_2))
+  |> pog.parameter(pog.text(arg_3))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
+/// A row you get from running the `select_platform_resources_by_user` query
+/// defined in `./src/auth_server/sql/select_platform_resources_by_user.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.6.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type SelectPlatformResourcesByUserRow {
+  SelectPlatformResourcesByUserRow(
+    id: Int,
+    user_id: String,
+    platform: IntegrationPlatform,
+    resource_type: ResourceTypeEnum,
+    external_id: String,
+    resource_name: Option(String),
+    resource_token: Option(String),
+    metadata: Option(String),
+    created_at: Option(Timestamp),
+    updated_at: Option(Timestamp),
+  )
+}
+
+/// Get all platform resources for a user on a specific platform
+///
+/// > 🐿️ This function was generated automatically using v4.6.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn select_platform_resources_by_user(
+  db: pog.Connection,
+  arg_1: String,
+  arg_2: IntegrationPlatform,
+) -> Result(pog.Returned(SelectPlatformResourcesByUserRow), pog.QueryError) {
+  let decoder = {
+    use id <- decode.field(0, decode.int)
+    use user_id <- decode.field(1, decode.string)
+    use platform <- decode.field(2, integration_platform_decoder())
+    use resource_type <- decode.field(3, resource_type_enum_decoder())
+    use external_id <- decode.field(4, decode.string)
+    use resource_name <- decode.field(5, decode.optional(decode.string))
+    use resource_token <- decode.field(6, decode.optional(decode.string))
+    use metadata <- decode.field(7, decode.optional(decode.string))
+    use created_at <- decode.field(8, decode.optional(pog.timestamp_decoder()))
+    use updated_at <- decode.field(9, decode.optional(pog.timestamp_decoder()))
+    decode.success(SelectPlatformResourcesByUserRow(
+      id:,
+      user_id:,
+      platform:,
+      resource_type:,
+      external_id:,
+      resource_name:,
+      resource_token:,
+      metadata:,
+      created_at:,
+      updated_at:,
+    ))
+  }
+
+  "-- Get all platform resources for a user on a specific platform
+SELECT id, user_id, platform, resource_type, external_id, resource_name, resource_token, metadata, created_at, updated_at
+FROM platform_resources
+WHERE user_id = $1::VARCHAR 
+  AND platform = $2::integration_platform
+ORDER BY created_at DESC;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(arg_1))
+  |> pog.parameter(integration_platform_encoder(arg_2))
   |> pog.returning(decoder)
   |> pog.execute(db)
 }
@@ -882,6 +1116,28 @@ fn product_status_encoder(product_status) -> pog.Value {
   case product_status {
     Available -> "available"
     Sold -> "sold"
+  }
+  |> pog.text
+}/// Corresponds to the Postgres `resource_type_enum` enum.
+///
+/// > 🐿️ This type definition was generated automatically using v4.6.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type ResourceTypeEnum {
+  Page
+}
+
+fn resource_type_enum_decoder() -> decode.Decoder(ResourceTypeEnum) {
+  use resource_type_enum <- decode.then(decode.string)
+  case resource_type_enum {
+    "page" -> decode.success(Page)
+    _ -> decode.failure(Page, "ResourceTypeEnum")
+  }
+}
+
+fn resource_type_enum_encoder(resource_type_enum) -> pog.Value {
+  case resource_type_enum {
+    Page -> "page"
   }
   |> pog.text
 }

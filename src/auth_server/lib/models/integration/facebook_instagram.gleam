@@ -174,12 +174,12 @@ pub fn get_current_facebook_user_pages(
   ctx: global_types.Context,
   user: user_types.User,
   integration: sql.IntegrationPlatform,
-) {
+) -> Result(integration_types.FacebookPagesResponse, String) {
   use facebook_token <- result.try(
     integration_utils.get_integration_token(ctx, user, integration)
     |> result.map_error(fn(error) {
       logger.log_error_with_context(
-        "integration_service:get_facebook_user",
+        "facebook_instagram:get_current_facebook_user_pages",
         error,
       )
       "Could not get facebook token from database."
@@ -198,41 +198,80 @@ pub fn get_current_facebook_user_pages(
       query: Some("access_token=" <> facebook_token.access_token),
     )
 
-  let facebook_pages = {
-    use user_response <- result.try(
-      case api_client.send_request(user_pages_request) {
-        Ok(response) -> Ok(response)
-        Error(error_response) -> Error(error_response <> error_response)
-      },
+  use user_pages_response <- result.try(
+    case api_client.send_request(user_pages_request) {
+      Ok(response) -> Ok(response)
+      Error(error_response) -> Error(error_response <> error_response)
+    },
+  )
+
+  use dynamic_pages <- result.try(
+    json.parse(user_pages_response.body, decode.dynamic)
+    |> result.map_error(fn(error) {
+      logger.log_error_with_context(
+        "facebook_instagram:get_current_facebook_user_pages",
+        error,
+      )
+      "Could not parse facebook pages response"
+    }),
+  )
+
+  integration_transform.facebook_pages_response_decoder(dynamic_pages)
+  |> result.map_error(fn(error) {
+    logger.log_error_with_context(
+      "facebook_instagram:get_current_facebook_user_pages",
+      error,
     )
+    "Failed to decode facebook pages from response"
+  })
+}
 
-    use dynamic_pages <- result.try(
-      json.parse(user_response.body, decode.dynamic)
-      |> result.map_error(fn(error) {
-        logger.log_error_with_context(
-          "facebook_instagram:get_current_facebook_user_pages",
-          error,
-        )
-        "Could not get user from facebook api response"
-      }),
+pub fn fetch_and_cache_facebook_pages(
+  ctx: global_types.Context,
+  user: user_types.User,
+  integration: sql.IntegrationPlatform,
+) -> Result(integration_types.FacebookPagesResponse, String) {
+  use pages_response <- result.try(get_current_facebook_user_pages(
+    ctx,
+    user,
+    integration,
+  ))
+
+  use _saved_resources <- result.try(
+    integration_utils.save_platform_resources(
+      ctx,
+      user,
+      integration,
+      pages_response.data,
     )
+    |> result.map_error(fn(error) {
+      logger.log_error_with_context(
+        "facebook_instagram:fetch_and_cache_facebook_pages",
+        error,
+      )
+      "Failed to cache page resources in database"
+    }),
+  )
 
-    use pages <- result.try(
-      integration_transform.facebook_pages_response_decoder(dynamic_pages)
-      |> result.map_error(fn(error) {
-        logger.log_error_with_context(
-          "facebook_instagram:get_current_facebook_user_pages",
-          error,
-        )
-        "Failed to decode facebook user from reponse"
-      }),
-    )
+  Ok(pages_response)
+}
 
-    Ok(pages)
-  }
+pub fn get_page_token(
+  ctx: global_types.Context,
+  user: user_types.User,
+  integration: sql.IntegrationPlatform,
+  page_id: String,
+) -> Result(String, String) {
+  use resource <- result.try(
+    integration_utils.get_platform_resource(ctx, user, integration, page_id)
+    |> result.map_error(fn(error) {
+      logger.log_error_with_context("facebook_instagram:get_page_token", error)
+      error
+    }),
+  )
 
-  case facebook_pages {
-    Ok(pages) -> Ok(pages)
-    Error(error_message) -> Error(error_message)
+  case resource.resource_token {
+    Some(token) -> Ok(token)
+    None -> Error("Page token not found for page_id: " <> page_id)
   }
 }

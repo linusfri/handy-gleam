@@ -137,7 +137,7 @@ pub fn get_current_facebook_user_pages(
   integration: sql.IntegrationPlatform,
 ) {
   case
-    facebook_instagram.get_current_facebook_user_pages(ctx, user, integration)
+    facebook_instagram.fetch_and_cache_facebook_pages(ctx, user, integration)
   {
     Ok(pages) ->
       wisp.json_response(
