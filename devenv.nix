@@ -1,6 +1,7 @@
 {
   pkgs,
   inputs,
+  config,
   ...
 }:
 let
@@ -26,6 +27,8 @@ in
     env = {
       AUTH_ENDPOINT = "keycloak.friikod.se/realms/auth-server/protocol/openid-connect";
       ADMIN_ENDPOINT = "keycloak.friikod.se/admin/realms/auth-server";
+      FACEBOOK_BASE_URL = "graph.facebook.com/v24.0";
+      FACEBOOK_REDIRECT_URI = "${config.env.CLOUDFLARE_TUNNEL_URL}/facebook-instagram/long-lived-token";
       CLOUDFLARE_TUNNEL_URL = "https://auth-server-local.friikod.se";
       STATIC_DIRECTORY = "static";
     };
