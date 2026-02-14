@@ -3,6 +3,7 @@ import auth_server/lib/models/product/product
 import auth_server/lib/models/product/product_transform
 import auth_server/lib/models/user/user_types.{type User}
 import auth_server/lib/utils/logger
+import auth_server/sql
 import gleam/http
 import gleam/http/request
 import gleam/int
@@ -37,7 +38,10 @@ pub fn create_product(
   use json_body <- wisp.require_json(req)
 
   case product.create_product(data: json_body, context: ctx, user: user) {
-    Ok(_) -> wisp.json_response("Product created", 201)
+    Ok(_created_product) -> {
+      echo "Create on facebook/insta if we have a page to create on"
+      wisp.json_response("Product created", 201)
+    }
     Error(err) -> {
       logger.log_error(err)
       wisp.json_response(err, 500)
@@ -119,7 +123,7 @@ pub fn update_product(
 ) {
   use json_body <- wisp.require_json(req)
 
-  let edit_product_result = {
+  let update_product_result = {
     use product_id <- result.try(
       int.parse(product_id_str)
       |> result.replace_error("Invalid product id"),
@@ -133,8 +137,11 @@ pub fn update_product(
     )
   }
 
-  case edit_product_result {
-    Ok(_) -> wisp.json_response("Product updated", 201)
+  case update_product_result {
+    Ok(_updated_product) -> {
+      echo "Sync to facebook/instagram if we have a page to sync to"
+      wisp.json_response("Product updated", 201)
+    }
     Error(err) -> {
       wisp.json_response(err, 500)
     }

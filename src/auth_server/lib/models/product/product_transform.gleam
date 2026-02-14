@@ -79,6 +79,7 @@ fn product_status_to_json(product_status: ProductStatus) -> json.Json {
   }
 }
 
+/// For both product update and create
 pub fn product_mutation_request_decoder(product_data_create: Dynamic) {
   let products_row_decoder = {
     use name <- decode.field("name", decode.string)

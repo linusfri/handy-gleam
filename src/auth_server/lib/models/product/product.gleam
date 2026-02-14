@@ -12,43 +12,43 @@ pub fn create_product(
   data data: Dynamic,
   user user: User,
   context ctx: global_types.Context,
-) -> Result(Nil, String) {
-  use product_request <- result.try(
+) -> Result(sql.CreateProductRow, String) {
+  use create_product_request <- result.try(
     product_transform.product_mutation_request_decoder(data)
     |> result.map_error(fn(errors) { string.inspect(errors) }),
   )
 
   pog.transaction(ctx.db, fn(tx) {
-    use create_product_response <- result.try(
+    use create_product_db_result <- result.try(
       sql.create_product(
         tx,
-        product_request.name,
-        option.unwrap(product_request.description, ""),
-        product_request.status,
-        product_request.price,
+        create_product_request.name,
+        option.unwrap(create_product_request.description, ""),
+        create_product_request.status,
+        create_product_request.price,
       )
       |> result.map_error(fn(err) {
         "Could not create product | " <> string.inspect(err)
       }),
     )
 
-    use first_product <- result.try(case create_product_response.rows {
+    use created_product_row <- result.try(case create_product_db_result.rows {
       [first, ..] -> Ok(first)
       [] -> Error("No product ID returned from db query")
     })
 
     use _ <- result.try(link_files_tx(
       tx,
-      first_product.id,
-      product_request.image_ids,
+      created_product_row.id,
+      create_product_request.image_ids,
     ))
 
     use _ <- result.try(
-      sql.create_products_user_groups(tx, [first_product.id], user.groups)
+      sql.create_products_user_groups(tx, [created_product_row.id], user.groups)
       |> result.map_error(fn(err) { string.inspect(err) }),
     )
 
-    Ok(Nil)
+    Ok(created_product_row)
   })
   |> result.map_error(fn(err) { "Transaction failed: " <> string.inspect(err) })
 }
@@ -65,7 +65,7 @@ pub fn update_product(
   )
 
   pog.transaction(ctx.db, fn(tx) {
-    use update_product_response <- result.try(
+    use update_product_db_result <- result.try(
       sql.update_product(
         tx,
         product_id,
@@ -87,18 +87,18 @@ pub fn update_product(
       }),
     )
 
-    use first_product <- result.try(case update_product_response.rows {
-      [first, ..] -> Ok(first)
-      [] -> Error("No product ID returned from db query")
+    use updated_product_row <- result.try(case update_product_db_result.rows {
+      [first_product, ..] -> Ok(first_product)
+      [] -> Error("No product row returned from db query")
     })
 
     use _ <- result.try(link_files_tx(
       tx,
-      first_product.id,
+      updated_product_row.id,
       product_edit_request.image_ids,
     ))
 
-    Ok(Nil)
+    Ok(updated_product_row)
   })
   |> result.map_error(fn(err) { "Transaction failed: " <> string.inspect(err) })
 }
