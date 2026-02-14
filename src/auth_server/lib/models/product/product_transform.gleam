@@ -64,6 +64,18 @@ fn product_image_response_decoder() -> decode.Decoder(File) {
   ))
 }
 
+pub fn parse_images_json(images_json: String) -> List(File) {
+  json.parse(images_json, decode.list(product_image_response_decoder()))
+  |> result.unwrap([])
+}
+
+pub fn parse_integrations_json(
+  integrations_json: String,
+) -> List(ProductIntegration) {
+  json.parse(integrations_json, decode.list(product_integration_decoder()))
+  |> result.unwrap([])
+}
+
 fn product_status_decoder() -> decode.Decoder(ProductStatus) {
   use product_status <- decode.then(decode.string)
   case product_status {

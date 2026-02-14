@@ -228,6 +228,7 @@ pub type CreateProductRow {
     price: Float,
     created_at: Option(Timestamp),
     updated_at: Option(Timestamp),
+    images: String,
   )
 }
 
@@ -252,6 +253,7 @@ pub fn create_product(
     use price <- decode.field(4, pog.numeric_decoder())
     use created_at <- decode.field(5, decode.optional(pog.timestamp_decoder()))
     use updated_at <- decode.field(6, decode.optional(pog.timestamp_decoder()))
+    use images <- decode.field(7, decode.string)
     decode.success(CreateProductRow(
       id:,
       name:,
@@ -260,19 +262,46 @@ pub fn create_product(
       price:,
       created_at:,
       updated_at:,
+      images:,
     ))
   }
 
-  "insert into
-    products (
-        name,
-        description,
-        status,
-        price,
-        created_at,
-        updated_at
-    )
-values ($1, $2, $3, $4, now(), now()) returning *;"
+  "with inserted as (
+  insert into
+      products (
+          name,
+          description,
+          status,
+          price,
+          created_at,
+          updated_at
+      )
+  values ($1, $2, $3, $4, now(), now())
+  returning *
+)
+select
+  inserted.id,
+  inserted.name,
+  inserted.description,
+  inserted.status,
+  inserted.price,
+  inserted.created_at,
+  inserted.updated_at,
+  COALESCE(
+    json_agg(
+      json_build_object(
+        'id', files.id,
+        'filename', files.filename,
+        'file_type', files.file_type,
+        'context_type', files.context_type
+      )
+    ) filter (where files.id is not null),
+    '[]'::json
+  ) as images
+from inserted
+left join product_file on inserted.id = product_file.product_id
+left join files on product_file.file_id = files.id
+group by inserted.id, inserted.name, inserted.description, inserted.status, inserted.price, inserted.created_at, inserted.updated_at;"
   |> pog.query
   |> pog.parameter(pog.text(arg_1))
   |> pog.parameter(pog.text(arg_2))
@@ -1089,6 +1118,78 @@ limit 1;"
   |> pog.execute(db)
 }
 
+/// A row you get from running the `update_or_create_product_integration` query
+/// defined in `./src/auth_server/sql/update_or_create_product_integration.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.6.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type UpdateOrCreateProductIntegrationRow {
+  UpdateOrCreateProductIntegrationRow(
+    id: Int,
+    product_id: Int,
+    platform: IntegrationPlatform,
+    resource_id: Option(String),
+    external_id: Option(String),
+    sync_status: SyncStatus,
+    synced_at: Option(Timestamp),
+  )
+}
+
+/// name: update_or_create_product_integration_external_id
+/// Create or update product integration with external_id and sync status after posting to platform
+///
+/// > 🐿️ This function was generated automatically using v4.6.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn update_or_create_product_integration(
+  db: pog.Connection,
+  arg_1: Int,
+  arg_2: IntegrationPlatform,
+  arg_3: String,
+  arg_4: SyncStatus,
+  arg_5: String,
+) -> Result(pog.Returned(UpdateOrCreateProductIntegrationRow), pog.QueryError) {
+  let decoder = {
+    use id <- decode.field(0, decode.int)
+    use product_id <- decode.field(1, decode.int)
+    use platform <- decode.field(2, integration_platform_decoder())
+    use resource_id <- decode.field(3, decode.optional(decode.string))
+    use external_id <- decode.field(4, decode.optional(decode.string))
+    use sync_status <- decode.field(5, sync_status_decoder())
+    use synced_at <- decode.field(6, decode.optional(pog.timestamp_decoder()))
+    decode.success(UpdateOrCreateProductIntegrationRow(
+      id:,
+      product_id:,
+      platform:,
+      resource_id:,
+      external_id:,
+      sync_status:,
+      synced_at:,
+    ))
+  }
+
+  "-- name: update_or_create_product_integration_external_id
+-- Create or update product integration with external_id and sync status after posting to platform
+insert into product_integrations (product_id, platform, external_id, sync_status, synced_at, resource_id)
+values ($1, $2, $3, $4, now(), $5)
+on conflict (product_id, platform)
+do update set
+  external_id = EXCLUDED.external_id,
+  sync_status = EXCLUDED.sync_status,
+  synced_at = now()
+returning id, product_id, platform, resource_id, external_id, sync_status, synced_at;
+"
+  |> pog.query
+  |> pog.parameter(pog.int(arg_1))
+  |> pog.parameter(integration_platform_encoder(arg_2))
+  |> pog.parameter(pog.text(arg_3))
+  |> pog.parameter(sync_status_encoder(arg_4))
+  |> pog.parameter(pog.text(arg_5))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
 /// A row you get from running the `update_product` query
 /// defined in `./src/auth_server/sql/update_product.sql`.
 ///
@@ -1104,6 +1205,7 @@ pub type UpdateProductRow {
     price: Float,
     created_at: Option(Timestamp),
     updated_at: Option(Timestamp),
+    images: String,
   )
 }
 
@@ -1130,6 +1232,7 @@ pub fn update_product(
     use price <- decode.field(4, pog.numeric_decoder())
     use created_at <- decode.field(5, decode.optional(pog.timestamp_decoder()))
     use updated_at <- decode.field(6, decode.optional(pog.timestamp_decoder()))
+    use images <- decode.field(7, decode.string)
     decode.success(UpdateProductRow(
       id:,
       name:,
@@ -1138,23 +1241,49 @@ pub fn update_product(
       price:,
       created_at:,
       updated_at:,
+      images:,
     ))
   }
 
-  "update products
-set
-    name = $2,
-    description = $3,
-    status = $4,
-    price = $5,
-    updated_at = now()
-where id = $1
-and exists (
-    select 1 from product_user_group
-    where product_user_group.product_id = products.id
-    and product_user_group.user_group_id = any($6)
+  "with updated as (
+  update products
+  set
+      name = $2,
+      description = $3,
+      status = $4,
+      price = $5,
+      updated_at = now()
+  where id = $1
+  and exists (
+      select 1 from product_user_group
+      where product_user_group.product_id = products.id
+      and product_user_group.user_group_id = any($6)
+  )
+  returning *
 )
-returning *;
+select
+  updated.id,
+  updated.name,
+  updated.description,
+  updated.status,
+  updated.price,
+  updated.created_at,
+  updated.updated_at,
+  COALESCE(
+    json_agg(
+      json_build_object(
+        'id', files.id,
+        'filename', files.filename,
+        'file_type', files.file_type,
+        'context_type', files.context_type
+      )
+    ) filter (where files.id is not null),
+    '[]'::json
+  ) as images
+from updated
+left join product_file on updated.id = product_file.product_id
+left join files on product_file.file_id = files.id
+group by updated.id, updated.name, updated.description, updated.status, updated.price, updated.created_at, updated.updated_at;
 "
   |> pog.query
   |> pog.parameter(pog.int(arg_1))
@@ -1316,4 +1445,13 @@ fn sync_status_decoder() -> decode.Decoder(SyncStatus) {
     "pending" -> decode.success(Pending)
     _ -> decode.failure(Failed, "SyncStatus")
   }
+}
+
+fn sync_status_encoder(sync_status) -> pog.Value {
+  case sync_status {
+    Failed -> "failed"
+    Synced -> "synced"
+    Pending -> "pending"
+  }
+  |> pog.text
 }
