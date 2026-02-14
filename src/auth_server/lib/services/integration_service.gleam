@@ -37,7 +37,8 @@ pub fn request_long_lived_facebook_token(
   req: request.Request(wisp.Connection),
   ctx: global_types.Context,
 ) {
-  let code = list.key_find(wisp.get_query(req), "code") |> result.unwrap("")
+  let oauth_code =
+    list.key_find(wisp.get_query(req), "code") |> result.unwrap("")
 
   // Unsafe but i can't fucking stand this
   let token = list.key_find(wisp.get_query(req), "state") |> result.unwrap("")
@@ -55,13 +56,13 @@ pub fn request_long_lived_facebook_token(
     )
 
     use facebook_token <- result.try(
-      facebook_instagram.exchange_code_for_token(code)
+      facebook_instagram.exchange_code_for_token(oauth_code)
       |> result.map_error(fn(err) {
         logger.log_error_with_context(
           "integration_service:request_long_lived_facebook_token",
           err,
         )
-        wisp.json_response("Could not get facebook long lived token", 500)
+        wisp.json_response("Could not get facebook long lived token", 400)
       }),
     )
 
@@ -80,7 +81,10 @@ pub fn request_long_lived_facebook_token(
           "integration_service:request_long_lived_facebook_token",
           error,
         )
-        wisp.json_response("Could not log in to facebook", 500)
+        wisp.json_response(
+          "Could not create facebook token for user in database",
+          500,
+        )
       }),
     )
 

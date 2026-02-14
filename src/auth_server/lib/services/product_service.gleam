@@ -1,6 +1,8 @@
 import auth_server/global_types
+import auth_server/lib/models/integration/facebook_instagram
 import auth_server/lib/models/product/product
 import auth_server/lib/models/product/product_transform
+import auth_server/lib/models/product/product_types.{FacebookProduct}
 import auth_server/lib/models/user/user_types.{type User}
 import auth_server/lib/utils/logger
 import auth_server/sql
@@ -38,9 +40,30 @@ pub fn create_product(
   use json_body <- wisp.require_json(req)
 
   case product.create_product(data: json_body, context: ctx, user: user) {
-    Ok(_created_product) -> {
-      echo "Create on facebook/insta if we have a page to create on"
-      wisp.json_response("Product created", 201)
+    Ok(created_product) -> {
+      let facebook_post_created =
+        facebook_instagram.update_or_create_post_on_page(
+          ctx,
+          user,
+          sql.Facebook,
+          FacebookProduct(
+            id: created_product.id,
+            name: created_product.name,
+            status: created_product.status,
+            price: created_product.price,
+            images: [],
+            description: created_product.description,
+          ),
+        )
+
+      case result.is_error(facebook_post_created) {
+        False -> wisp.json_response("Product created", 201)
+        True ->
+          wisp.json_response(
+            "Product created, but facebook post could not be created",
+            201,
+          )
+      }
     }
     Error(err) -> {
       logger.log_error(err)
@@ -138,9 +161,30 @@ pub fn update_product(
   }
 
   case update_product_result {
-    Ok(_updated_product) -> {
-      echo "Sync to facebook/instagram if we have a page to sync to"
-      wisp.json_response("Product updated", 201)
+    Ok(updated_product) -> {
+      let facebook_post_created =
+        facebook_instagram.update_or_create_post_on_page(
+          ctx,
+          user,
+          sql.Facebook,
+          FacebookProduct(
+            id: updated_product.id,
+            name: updated_product.name,
+            status: updated_product.status,
+            price: updated_product.price,
+            images: [],
+            description: updated_product.description,
+          ),
+        )
+
+      case result.is_error(facebook_post_created) {
+        False -> wisp.json_response("Product updated", 201)
+        True ->
+          wisp.json_response(
+            "Product updated, but facebook post could not be created",
+            201,
+          )
+      }
     }
     Error(err) -> {
       wisp.json_response(err, 500)

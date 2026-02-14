@@ -6,6 +6,7 @@ create table product_integrations (
   id serial primary key,
   product_id int not null references products(id) on delete cascade,
   platform integration_platform not null,
+  resource_id varchar(255),
   synced_at timestamp,
   sync_status sync_status not null default 'pending',
   external_id varchar(255),

@@ -193,6 +193,7 @@ FROM unnest(
   $4::VARCHAR[],  -- external_ids
   $5::VARCHAR[],  -- resource_names
   $6::TEXT[]      -- resource_tokens
+  -- able to include metadata if needed in future
 ) AS platform_resources(external_id, resource_name, resource_token)
 ON CONFLICT (user_id, platform, resource_type, external_id) 
 DO UPDATE SET 
@@ -300,6 +301,67 @@ from unnest($2::int[]) as file_id;"
   |> pog.query
   |> pog.parameter(pog.int(arg_1))
   |> pog.parameter(pog.array(fn(value) { pog.int(value) }, arg_2))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
+/// A row you get from running the `create_product_integrations` query
+/// defined in `./src/auth_server/sql/create_product_integrations.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.6.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type CreateProductIntegrationsRow {
+  CreateProductIntegrationsRow(
+    id: Int,
+    product_id: Int,
+    platform: IntegrationPlatform,
+    resource_id: Option(String),
+    sync_status: SyncStatus,
+  )
+}
+
+/// name: create_product_integrations
+/// Insert product integrations
+///
+/// > 🐿️ This function was generated automatically using v4.6.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn create_product_integrations(
+  db: pog.Connection,
+  arg_1: Int,
+  arg_2: List(IntegrationPlatform),
+  arg_3: List(String),
+) -> Result(pog.Returned(CreateProductIntegrationsRow), pog.QueryError) {
+  let decoder = {
+    use id <- decode.field(0, decode.int)
+    use product_id <- decode.field(1, decode.int)
+    use platform <- decode.field(2, integration_platform_decoder())
+    use resource_id <- decode.field(3, decode.optional(decode.string))
+    use sync_status <- decode.field(4, sync_status_decoder())
+    decode.success(CreateProductIntegrationsRow(
+      id:,
+      product_id:,
+      platform:,
+      resource_id:,
+      sync_status:,
+    ))
+  }
+
+  "-- name: create_product_integrations
+-- Insert product integrations
+insert into product_integrations (product_id, platform, resource_id)
+select $1, * from unnest(
+  $2::integration_platform[],
+  $3::varchar[]
+)
+returning id, product_id, platform, resource_id, sync_status;"
+  |> pog.query
+  |> pog.parameter(pog.int(arg_1))
+  |> pog.parameter(
+    pog.array(fn(value) { integration_platform_encoder(value) }, arg_2),
+  )
+  |> pog.parameter(pog.array(fn(value) { pog.text(value) }, arg_3))
   |> pog.returning(decoder)
   |> pog.execute(db)
 }
@@ -714,6 +776,7 @@ pub type SelectProductByIdRow {
     created_at: Option(Timestamp),
     updated_at: Option(Timestamp),
     images: String,
+    integrations: String,
   )
 }
 
@@ -737,6 +800,7 @@ pub fn select_product_by_id(
     use created_at <- decode.field(5, decode.optional(pog.timestamp_decoder()))
     use updated_at <- decode.field(6, decode.optional(pog.timestamp_decoder()))
     use images <- decode.field(7, decode.string)
+    use integrations <- decode.field(8, decode.string)
     decode.success(SelectProductByIdRow(
       id:,
       name:,
@@ -746,6 +810,7 @@ pub fn select_product_by_id(
       created_at:,
       updated_at:,
       images:,
+      integrations:,
     ))
   }
 
@@ -759,11 +824,19 @@ select
   products.price,
   products.created_at,
   products.updated_at,
-  COALESCE(json_agg(json_build_object('id', files.id, 'filename', files.filename, 'file_type', files.file_type, 'context_type', files.context_type)) filter (where files.id is not null), '[]'::json) as images
+  COALESCE(
+    json_agg(
+      json_build_object('id', files.id, 'filename', files.filename, 'file_type', files.file_type, 'context_type', files.context_type)
+    ) filter (where files.id is not null), '[]'::json) as images,
+  COALESCE(
+    json_agg(
+      json_build_object('platform', product_integrations.platform, 'resource_id', product_integrations.resource_id)
+    ) filter (where product_integrations.id is not null and product_integrations.resource_id is not null), '[]'::json) as integrations
 from products
 inner join product_user_group on products.id = product_user_group.product_id
 left join product_file on products.id = product_file.product_id
 left join files on product_file.file_id = files.id
+left join product_integrations on products.id = product_integrations.product_id
 where products.id = $1
 and product_user_group.user_group_id = any($2)
 group by products.id, products.name, products.description, products.status, products.price, products.created_at, products.updated_at
@@ -771,6 +844,71 @@ limit 1;"
   |> pog.query
   |> pog.parameter(pog.int(arg_1))
   |> pog.parameter(pog.array(fn(value) { pog.text(value) }, arg_2))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
+/// A row you get from running the `select_product_integrations` query
+/// defined in `./src/auth_server/sql/select_product_integrations.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.6.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type SelectProductIntegrationsRow {
+  SelectProductIntegrationsRow(
+    id: Int,
+    product_id: Int,
+    platform: IntegrationPlatform,
+    resource_id: Option(String),
+    sync_status: SyncStatus,
+    external_id: Option(String),
+    synced_at: Option(Timestamp),
+  )
+}
+
+/// name: select_product_integrations
+/// Get product integrations by product_id
+///
+/// > 🐿️ This function was generated automatically using v4.6.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn select_product_integrations(
+  db: pog.Connection,
+  arg_1: Int,
+) -> Result(pog.Returned(SelectProductIntegrationsRow), pog.QueryError) {
+  let decoder = {
+    use id <- decode.field(0, decode.int)
+    use product_id <- decode.field(1, decode.int)
+    use platform <- decode.field(2, integration_platform_decoder())
+    use resource_id <- decode.field(3, decode.optional(decode.string))
+    use sync_status <- decode.field(4, sync_status_decoder())
+    use external_id <- decode.field(5, decode.optional(decode.string))
+    use synced_at <- decode.field(6, decode.optional(pog.timestamp_decoder()))
+    decode.success(SelectProductIntegrationsRow(
+      id:,
+      product_id:,
+      platform:,
+      resource_id:,
+      sync_status:,
+      external_id:,
+      synced_at:,
+    ))
+  }
+
+  "-- name: select_product_integrations
+-- Get product integrations by product_id
+select 
+  id,
+  product_id,
+  platform,
+  resource_id,
+  sync_status,
+  external_id,
+  synced_at
+from product_integrations
+where product_id = $1;"
+  |> pog.query
+  |> pog.parameter(pog.int(arg_1))
   |> pog.returning(decoder)
   |> pog.execute(db)
 }
@@ -791,6 +929,7 @@ pub type SelectProductsRow {
     created_at: Option(Timestamp),
     updated_at: Option(Timestamp),
     images: String,
+    integrations: String,
   )
 }
 
@@ -812,6 +951,7 @@ pub fn select_products(
     use created_at <- decode.field(5, decode.optional(pog.timestamp_decoder()))
     use updated_at <- decode.field(6, decode.optional(pog.timestamp_decoder()))
     use images <- decode.field(7, decode.string)
+    use integrations <- decode.field(8, decode.string)
     decode.success(SelectProductsRow(
       id:,
       name:,
@@ -821,6 +961,7 @@ pub fn select_products(
       created_at:,
       updated_at:,
       images:,
+      integrations:,
     ))
   }
 
@@ -850,12 +991,28 @@ select
         files.id is not null
     ),
     '[]' :: json
-  ) as images
+  ) as images,
+  COALESCE(
+    json_agg(
+      json_build_object(
+        'platform',
+        product_integrations.platform,
+        'resource_id',
+        product_integrations.resource_id
+      )
+    ) filter (
+      where
+        product_integrations.id is not null
+        and product_integrations.resource_id is not null
+    ),
+    '[]' :: json
+  ) as integrations
 from
   products
   inner join product_user_group on products.id = product_user_group.product_id
   left join product_file on products.id = product_file.product_id
   left join files on product_file.file_id = files.id
+  left join product_integrations on products.id = product_integrations.product_id
 where
   product_user_group.user_group_id = any($1)
 group by
@@ -1140,4 +1297,23 @@ fn resource_type_enum_encoder(resource_type_enum) -> pog.Value {
     Page -> "page"
   }
   |> pog.text
+}/// Corresponds to the Postgres `sync_status` enum.
+///
+/// > 🐿️ This type definition was generated automatically using v4.6.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type SyncStatus {
+  Failed
+  Synced
+  Pending
+}
+
+fn sync_status_decoder() -> decode.Decoder(SyncStatus) {
+  use sync_status <- decode.then(decode.string)
+  case sync_status {
+    "failed" -> decode.success(Failed)
+    "synced" -> decode.success(Synced)
+    "pending" -> decode.success(Pending)
+    _ -> decode.failure(Failed, "SyncStatus")
+  }
 }

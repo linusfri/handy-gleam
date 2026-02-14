@@ -4,6 +4,7 @@ import auth_server/lib/models/auth/auth_utils
 import auth_server/lib/models/integration/integration_transform
 import auth_server/lib/models/integration/integration_types
 import auth_server/lib/models/integration/integration_utils
+import auth_server/lib/models/product/product_types.{type FacebookProduct}
 import auth_server/lib/models/user/user_transform
 import auth_server/lib/models/user/user_types
 import auth_server/lib/utils/api_client
@@ -273,5 +274,62 @@ pub fn get_page_token(
   case resource.resource_token {
     Some(token) -> Ok(token)
     None -> Error("Page token not found for page_id: " <> page_id)
+  }
+}
+
+pub fn update_or_create_post_on_page(
+  ctx: global_types.Context,
+  user: user_types.User,
+  integration: sql.IntegrationPlatform,
+  facebook_product: FacebookProduct,
+) {
+  use product_integrations <- result.try(
+    sql.select_product_integrations(ctx.db, facebook_product.id)
+    |> result.map_error(fn(err) {
+      logger.log_error_with_context(
+        "facebook_instagram:update_or_create_post",
+        err,
+      )
+      "Could not fetch product integrations"
+    }),
+  )
+
+  use facebook_integration <- result.try(
+    product_integrations.rows
+    |> list.find(fn(product_integration) {
+      product_integration.platform == sql.Facebook
+    })
+    |> result.replace_error("No Facebook integration found for this product"),
+  )
+
+  use page_id <- result.try(case facebook_integration.resource_id {
+    Some(id) -> Ok(id)
+    None -> Error("No page_id configured for this product")
+  })
+
+  use facebook_page_token <- result.try(
+    get_page_token(ctx, user, integration, page_id)
+    |> result.map_error(fn(error) { error }),
+  )
+
+  let update_or_create_post_request =
+    request.Request(
+      method: http.Post,
+      headers: [],
+      body: "",
+      scheme: http.Https,
+      host: config().facebook_base_url,
+      port: None,
+      path: page_id <> "/feed",
+      query: None,
+    )
+    |> request.set_query([
+      #("access_token", facebook_page_token),
+      #("message", option.unwrap(facebook_product.description, "")),
+    ])
+
+  case api_client.send_request(update_or_create_post_request) {
+    Ok(res) -> Ok(res)
+    Error(error) -> Error(error)
   }
 }

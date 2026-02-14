@@ -24,9 +24,14 @@ pub type Product {
     status: ProductStatus,
     price: Float,
     images: List(File),
+    integrations: List(ProductIntegration),
     created_at: Option(timestamp.Timestamp),
     updated_at: Option(timestamp.Timestamp),
   )
+}
+
+pub type ProductIntegration {
+  ProductIntegration(platform: sql.IntegrationPlatform, resource_id: String)
 }
 
 pub type ProductMutationRequest {
@@ -36,6 +41,7 @@ pub type ProductMutationRequest {
     status: ProductStatus,
     price: Float,
     image_ids: List(Int),
+    integrations: List(ProductIntegration),
   )
 }
 
@@ -79,6 +85,29 @@ fn product_status_to_json(product_status: ProductStatus) -> json.Json {
   }
 }
 
+fn integration_platform_to_json(platform: sql.IntegrationPlatform) -> json.Json {
+  case platform {
+    sql.Facebook -> json.string("facebook")
+    sql.Instagram -> json.string("instagram")
+  }
+}
+
+fn integration_platform_decoder() -> decode.Decoder(sql.IntegrationPlatform) {
+  use integration_platform <- decode.then(decode.string)
+  case integration_platform {
+    "facebook" -> decode.success(sql.Facebook)
+    "instagram" -> decode.success(sql.Instagram)
+    _ -> decode.failure(sql.Facebook, "IntegrationPlatform")
+  }
+}
+
+fn product_integration_decoder() -> decode.Decoder(ProductIntegration) {
+  use platform <- decode.field("platform", integration_platform_decoder())
+  use resource_id <- decode.field("resource_id", decode.string)
+
+  decode.success(ProductIntegration(platform:, resource_id:))
+}
+
 /// For both product update and create
 pub fn product_mutation_request_decoder(product_data_create: Dynamic) {
   let products_row_decoder = {
@@ -90,12 +119,18 @@ pub fn product_mutation_request_decoder(product_data_create: Dynamic) {
     use status <- decode.field("status", product_status_decoder())
     use price <- decode.field("price", product_price_decoder())
     use image_ids <- decode.field("image_ids", decode.list(decode.int))
+    use integrations <- decode.optional_field(
+      "integrations",
+      [],
+      decode.list(product_integration_decoder()),
+    )
     decode.success(ProductMutationRequest(
       name:,
       description:,
       status:,
       price:,
       image_ids:,
+      integrations:,
     ))
   }
 
@@ -124,6 +159,10 @@ pub fn product_decoder(product_data: Dynamic) {
       "updated_at",
       decode.optional(pog.timestamp_decoder()),
     )
+    use integrations <- decode.field(
+      "integrations",
+      decode.list(product_integration_decoder()),
+    )
     decode.success(Product(
       id:,
       name:,
@@ -131,6 +170,7 @@ pub fn product_decoder(product_data: Dynamic) {
       status:,
       price:,
       images:,
+      integrations:,
       created_at:,
       updated_at:,
     ))
@@ -147,11 +187,15 @@ pub fn product_to_json(product_to_json: sql.SelectProductsRow) -> json.Json {
     status:,
     price:,
     images:,
+    integrations:,
     created_at:,
     updated_at:,
   ) = product_to_json
   let images =
     json.parse(images, decode.list(product_image_response_decoder()))
+    |> result.unwrap([])
+  let integrations_list =
+    json.parse(integrations, decode.list(product_integration_decoder()))
     |> result.unwrap([])
 
   json.object([
@@ -179,6 +223,15 @@ pub fn product_to_json(product_to_json: sql.SelectProductsRow) -> json.Json {
     }),
     #("status", product_status_to_json(status)),
     #("price", json.float(price)),
+    #(
+      "integrations",
+      json.array(integrations_list, fn(integration) {
+        json.object([
+          #("platform", integration_platform_to_json(integration.platform)),
+          #("resource_id", json.string(integration.resource_id)),
+        ])
+      }),
+    ),
     #("created_at", case created_at {
       option.None -> json.null()
       option.Some(time) -> json.float(timestamp.to_unix_seconds(time))

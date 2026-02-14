@@ -3,6 +3,7 @@ import auth_server/lib/models/product/product_transform
 import auth_server/lib/models/user/user_types.{type User}
 import auth_server/sql.{type SelectProductsRow, SelectProductsRow}
 import gleam/dynamic.{type Dynamic}
+import gleam/list
 import gleam/option
 import gleam/result
 import gleam/string
@@ -47,6 +48,27 @@ pub fn create_product(
       sql.create_products_user_groups(tx, [created_product_row.id], user.groups)
       |> result.map_error(fn(err) { string.inspect(err) }),
     )
+
+    // Save product integrations if provided
+    use _ <- result.try(case create_product_request.integrations {
+      [] -> Ok(pog.Returned(count: 0, rows: []))
+      integrations -> {
+        let platforms =
+          integrations
+          |> list.map(fn(integration) { integration.platform })
+        let resource_ids =
+          integrations
+          |> list.map(fn(integration) { integration.resource_id })
+
+        sql.create_product_integrations(
+          tx,
+          created_product_row.id,
+          platforms,
+          resource_ids,
+        )
+        |> result.map_error(fn(err) { string.inspect(err) })
+      }
+    })
 
     Ok(created_product_row)
   })
@@ -145,6 +167,7 @@ pub fn get_product_by_id(
           status: product.status,
           price: product.price,
           images: product.images,
+          integrations: product.integrations,
           created_at: product.created_at,
           updated_at: product.updated_at,
         ))
