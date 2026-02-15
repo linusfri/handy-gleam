@@ -1,13 +1,9 @@
 import auth_server/global_types
-import auth_server/lib/models/integration/facebook_instagram
 import auth_server/lib/models/product/product
 import auth_server/lib/models/product/product_transform
-import auth_server/lib/models/product/product_types.{
-  type FacebookProduct, FacebookProduct,
-}
 import auth_server/lib/models/user/user_types.{type User}
+import auth_server/lib/services/integration_service
 import auth_server/lib/utils/logger
-import auth_server/sql
 import gleam/http
 import gleam/http/request
 import gleam/int
@@ -42,18 +38,19 @@ pub fn create_product(
   use json_body <- wisp.require_json(req)
 
   case product.create_product(data: json_body, context: ctx, user: user) {
-    Ok(created_product) -> {
+    Ok(created_product_row) -> {
       let facebook_product =
-        FacebookProduct(
-          id: created_product.id,
-          name: created_product.name,
-          description: created_product.description,
-          status: created_product.status,
-          price: created_product.price,
-          images: product_transform.parse_images_json(created_product.images),
+        product_transform.create_product_row_to_facebook_product(
+          created_product_row,
         )
 
-      case sync_product_to_facebook(ctx, user, facebook_product) {
+      case
+        integration_service.sync_product_to_facebook(
+          ctx,
+          user,
+          facebook_product,
+        )
+      {
         False -> wisp.json_response("Product created", 201)
         True ->
           wisp.json_response(
@@ -158,18 +155,19 @@ pub fn update_product(
   }
 
   case update_product_result {
-    Ok(updated_product) -> {
+    Ok(updated_product_row) -> {
       let facebook_product =
-        FacebookProduct(
-          id: updated_product.id,
-          name: updated_product.name,
-          description: updated_product.description,
-          status: updated_product.status,
-          price: updated_product.price,
-          images: product_transform.parse_images_json(updated_product.images),
+        product_transform.update_product_row_to_facebook_product(
+          updated_product_row,
         )
 
-      case sync_product_to_facebook(ctx, user, facebook_product) {
+      case
+        integration_service.sync_product_to_facebook(
+          ctx,
+          user,
+          facebook_product,
+        )
+      {
         False -> wisp.json_response("Product updated", 201)
         True ->
           wisp.json_response(
@@ -182,16 +180,4 @@ pub fn update_product(
       wisp.json_response(err, 500)
     }
   }
-}
-
-pub fn sync_product_to_facebook(ctx, user, facebook_product) {
-  let facebook_post_created =
-    facebook_instagram.update_or_create_post_on_page(
-      ctx,
-      user,
-      sql.Facebook,
-      facebook_product,
-    )
-
-  result.is_error(facebook_post_created)
 }

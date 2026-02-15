@@ -155,3 +155,15 @@ pub fn get_current_facebook_user_pages(
     }
   }
 }
+
+pub fn sync_product_to_facebook(ctx, user, facebook_product) {
+  let facebook_post_created =
+    facebook_instagram.update_or_create_post_on_page(
+      ctx,
+      user,
+      sql.Facebook,
+      facebook_product,
+    )
+
+  result.is_error(facebook_post_created)
+}

@@ -55,7 +55,7 @@ pub fn update_product_row_to_facebook_product(
     description: update_product_row.description,
     status: update_product_row.status,
     price: update_product_row.price,
-    images: parse_images_json(update_product_row.images),
+    images: parse_product_images_json(update_product_row.images),
   )
 }
 
@@ -68,7 +68,7 @@ pub fn create_product_row_to_facebook_product(
     description: create_product_row.description,
     status: create_product_row.status,
     price: create_product_row.price,
-    images: parse_images_json(create_product_row.images),
+    images: parse_product_images_json(create_product_row.images),
   )
 }
 
@@ -91,12 +91,12 @@ fn product_image_response_decoder() -> decode.Decoder(File) {
   ))
 }
 
-pub fn parse_images_json(images_json: String) -> List(File) {
+pub fn parse_product_images_json(images_json: String) -> List(File) {
   json.parse(images_json, decode.list(product_image_response_decoder()))
   |> result.unwrap([])
 }
 
-pub fn parse_integrations_json(
+pub fn parse_product_integrations_json(
   integrations_json: String,
 ) -> List(ProductIntegration) {
   json.parse(integrations_json, decode.list(product_integration_decoder()))

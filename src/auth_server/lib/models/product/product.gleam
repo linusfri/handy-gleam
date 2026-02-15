@@ -49,30 +49,36 @@ pub fn create_product(
       |> result.map_error(fn(err) { string.inspect(err) }),
     )
 
-    // Save product integrations if provided
-    use _ <- result.try(case create_product_request.integrations {
-      [] -> Ok(pog.Returned(count: 0, rows: []))
-      integrations -> {
-        let platforms =
-          integrations
-          |> list.map(fn(integration) { integration.platform })
-        let resource_ids =
-          integrations
-          |> list.map(fn(integration) { integration.resource_id })
-
-        sql.create_product_integrations(
-          tx,
-          created_product_row.id,
-          platforms,
-          resource_ids,
-        )
-        |> result.map_error(fn(err) { string.inspect(err) })
-      }
-    })
+    use _ <- result.try(create_product_integrations_tx(
+      tx,
+      created_product_row.id,
+      create_product_request.integrations,
+    ))
 
     Ok(created_product_row)
   })
   |> result.map_error(fn(err) { "Transaction failed: " <> string.inspect(err) })
+}
+
+fn create_product_integrations_tx(
+  tx: pog.Connection,
+  product_id: Int,
+  product_integrations: List(product_transform.ProductIntegration),
+) {
+  case product_integrations {
+    [] -> Ok(pog.Returned(count: 0, rows: []))
+    integrations -> {
+      let platforms =
+        integrations
+        |> list.map(fn(integration) { integration.platform })
+      let resource_ids =
+        integrations
+        |> list.map(fn(integration) { integration.resource_id })
+
+      sql.create_product_integrations(tx, product_id, platforms, resource_ids)
+      |> result.map_error(fn(err) { string.inspect(err) })
+    }
+  }
 }
 
 pub fn update_product(
