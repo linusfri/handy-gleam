@@ -308,6 +308,7 @@ pub fn update_or_create_post_on_page(
     page_id,
   ))
 
+  // If there is an external id it means that we have created a post for this product on this page
   case facebook_page_resource.external_id {
     Some(external_id) -> {
       echo "Update existing facebook post" <> external_id

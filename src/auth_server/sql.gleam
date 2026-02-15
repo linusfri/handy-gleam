@@ -1383,6 +1383,74 @@ group by updated.id, updated.name, updated.description, updated.status, updated.
   |> pog.execute(db)
 }
 
+/// A row you get from running the `update_product_integration_external_id` query
+/// defined in `./src/auth_server/sql/update_product_integration_external_id.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.6.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type UpdateProductIntegrationExternalIdRow {
+  UpdateProductIntegrationExternalIdRow(
+    id: Int,
+    product_id: Int,
+    platform: IntegrationPlatform,
+    resource_id: Option(String),
+    external_id: Option(String),
+    sync_status: SyncStatus,
+    synced_at: Option(Timestamp),
+  )
+}
+
+/// name: update_product_integration_external_id
+/// Update external_id for a product integration
+///
+/// > 🐿️ This function was generated automatically using v4.6.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn update_product_integration_external_id(
+  db: pog.Connection,
+  arg_1: String,
+  arg_2: Int,
+  arg_3: String,
+) -> Result(pog.Returned(UpdateProductIntegrationExternalIdRow), pog.QueryError) {
+  let decoder = {
+    use id <- decode.field(0, decode.int)
+    use product_id <- decode.field(1, decode.int)
+    use platform <- decode.field(2, integration_platform_decoder())
+    use resource_id <- decode.field(3, decode.optional(decode.string))
+    use external_id <- decode.field(4, decode.optional(decode.string))
+    use sync_status <- decode.field(5, sync_status_decoder())
+    use synced_at <- decode.field(6, decode.optional(pog.timestamp_decoder()))
+    decode.success(UpdateProductIntegrationExternalIdRow(
+      id:,
+      product_id:,
+      platform:,
+      resource_id:,
+      external_id:,
+      sync_status:,
+      synced_at:,
+    ))
+  }
+
+  "-- name: update_product_integration_external_id
+-- Update external_id for a product integration
+update product_integrations
+set 
+  external_id = $1,
+  sync_status = 'synced',
+  synced_at = now(),
+  updated_at = now()
+where product_id = $2 and resource_id = $3
+returning id, product_id, platform, resource_id, external_id, sync_status, synced_at;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(arg_1))
+  |> pog.parameter(pog.int(arg_2))
+  |> pog.parameter(pog.text(arg_3))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
 // --- Enums -------------------------------------------------------------------
 
 /// Corresponds to the Postgres `context_type_enum` enum.
