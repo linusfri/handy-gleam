@@ -17,6 +17,7 @@ import gleam/json
 import gleam/list
 import gleam/option.{None, Some}
 import gleam/result
+import pog
 import wisp
 
 pub fn initiate_login(
@@ -310,20 +311,20 @@ pub fn update_or_create_post_on_page(
 
   // If there is an external id it means that we have created a post for this product on this page
   case facebook_page_resource.external_id {
-    Some(external_id) -> {
-      echo "Update existing facebook post" <> external_id
-      Error("Update existing post functionality not yet implemented")
-    }
-    None -> create_post_on_page(facebook_product, page_id, facebook_page_token)
+    Some(external_id) ->
+      update_post_on_page(facebook_product, external_id, facebook_page_token)
+    None ->
+      create_post_on_page(ctx, facebook_product, page_id, facebook_page_token)
   }
 }
 
 fn create_post_on_page(
+  ctx: global_types.Context,
   facebook_product: FacebookProduct,
   page_id: String,
   page_token: String,
 ) {
-  let update_or_create_post_request =
+  let create_post_request =
     request.Request(
       method: http.Post,
       headers: [],
@@ -336,11 +337,85 @@ fn create_post_on_page(
     )
     |> request.set_query([
       #("access_token", page_token),
-      #("message", option.unwrap(facebook_product.description, "")),
+      #(
+        "message",
+        facebook_product.name
+          <> "\n\n"
+          <> option.unwrap(facebook_product.description, ""),
+      ),
     ])
 
-  case api_client.send_request(update_or_create_post_request) {
-    Ok(res) -> Ok(res)
+  use create_post_response <- result.try(api_client.send_request(
+    create_post_request,
+  ))
+
+  let facebook_id_decoder = {
+    use id <- decode.field("id", decode.string)
+    decode.success(id)
+  }
+
+  use external_post_id <- result.try(
+    json.parse(from: create_post_response.body, using: facebook_id_decoder)
+    |> result.map_error(fn(err) {
+      logger.log_error_with_context(
+        "facebook_instagram:create_post_on_page",
+        err,
+      )
+      "Failed to decode returned post id from Facebook response"
+    }),
+  )
+
+  use _ <- result.try(
+    pog.transaction(ctx.db, fn(tx) {
+      sql.update_product_integration_external_id(
+        tx,
+        external_post_id,
+        facebook_product.id,
+        page_id,
+      )
+    })
+    |> result.map_error(fn(error) {
+      logger.log_error_with_context(
+        "facebook_instagram:create_post_on_page",
+        error,
+      )
+      "Failed to update product integration in db when creating post on facebook page"
+    }),
+  )
+
+  Ok("Post created")
+}
+
+fn update_post_on_page(
+  facebook_product: FacebookProduct,
+  external_id: String,
+  page_token: String,
+) {
+  let update_post_request =
+    request.Request(
+      method: http.Post,
+      headers: [],
+      body: "",
+      scheme: http.Https,
+      host: config().facebook_base_url,
+      port: None,
+      path: external_id,
+      query: None,
+    )
+    |> request.set_query([
+      #("access_token", page_token),
+      #(
+        "message",
+        facebook_product.name
+          <> "\n\n"
+          <> option.unwrap(facebook_product.description, ""),
+      ),
+    ])
+
+  let res = case api_client.send_request(update_post_request) {
+    Ok(_) -> Ok("Post updated")
     Error(error) -> Error(error)
   }
+
+  res
 }

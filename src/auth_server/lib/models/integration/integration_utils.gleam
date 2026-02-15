@@ -74,3 +74,12 @@ pub fn get_platform_resource(
     [first_row, ..] -> Ok(first_row)
   }
 }
+
+pub fn update_product_integration_external_id(
+  ctx: global_types.Context,
+  product_id: String,
+  resource_id: String,
+  external_id: String,
+) {
+  todo
+}
