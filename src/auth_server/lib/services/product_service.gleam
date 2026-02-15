@@ -141,7 +141,7 @@ pub fn update_product(
   user user: User,
   product_id product_id_str: String,
 ) {
-  use json_body <- wisp.require_json(req)
+  use update_product_data <- wisp.require_json(req)
 
   let update_product_result = {
     use product_id <- result.try(
@@ -150,7 +150,7 @@ pub fn update_product(
     )
 
     product.update_product(
-      product_data: json_body,
+      product_data: update_product_data,
       product_id: product_id,
       context: ctx,
       user: user,
@@ -184,7 +184,7 @@ pub fn update_product(
   }
 }
 
-pub fn sync_product_to_facebook(ctx, user, facebook_product: FacebookProduct) {
+pub fn sync_product_to_facebook(ctx, user, facebook_product) {
   let facebook_post_created =
     facebook_instagram.update_or_create_post_on_page(
       ctx,

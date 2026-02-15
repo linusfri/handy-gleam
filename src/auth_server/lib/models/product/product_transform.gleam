@@ -1,6 +1,7 @@
 import auth_server/lib/models/file/file_transform
 import auth_server/lib/models/file/file_types.{type File, File}
 import auth_server/lib/models/file_system/file_system
+import auth_server/lib/models/product/product_types
 import auth_server/sql.{type ProductStatus, Available, Sold}
 import gleam/dynamic.{type Dynamic}
 import gleam/dynamic/decode
@@ -42,6 +43,32 @@ pub type ProductMutationRequest {
     price: Float,
     image_ids: List(Int),
     integrations: List(ProductIntegration),
+  )
+}
+
+pub fn update_product_row_to_facebook_product(
+  update_product_row: sql.UpdateProductRow,
+) {
+  product_types.FacebookProduct(
+    id: update_product_row.id,
+    name: update_product_row.name,
+    description: update_product_row.description,
+    status: update_product_row.status,
+    price: update_product_row.price,
+    images: parse_images_json(update_product_row.images),
+  )
+}
+
+pub fn create_product_row_to_facebook_product(
+  create_product_row: sql.CreateProductRow,
+) {
+  product_types.FacebookProduct(
+    id: create_product_row.id,
+    name: create_product_row.name,
+    description: create_product_row.description,
+    status: create_product_row.status,
+    price: create_product_row.price,
+    images: parse_images_json(create_product_row.images),
   )
 }
 
