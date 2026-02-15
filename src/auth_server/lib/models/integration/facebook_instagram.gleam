@@ -295,11 +295,11 @@ pub fn update_or_create_post_on_page(
   )
 
   // Just pick the first one for MVP
-  use first_facebook_page <- result.try(
+  use facebook_page_resource <- result.try(
     list.first(facebook_pages.rows)
     |> result.map_error(fn(_) { "No facebook page found for this product" }),
   )
-  let page_id = option.unwrap(first_facebook_page.resource_id, "")
+  let page_id = option.unwrap(facebook_page_resource.resource_id, "")
 
   use facebook_page_token <- result.try(get_page_token(
     ctx,
@@ -308,6 +308,20 @@ pub fn update_or_create_post_on_page(
     page_id,
   ))
 
+  case facebook_page_resource.external_id {
+    Some(external_id) -> {
+      echo "Update existing facebook post" <> external_id
+      Error("Update existing post functionality not yet implemented")
+    }
+    None -> create_post_on_page(facebook_product, page_id, facebook_page_token)
+  }
+}
+
+fn create_post_on_page(
+  facebook_product: FacebookProduct,
+  page_id: String,
+  page_token: String,
+) {
   let update_or_create_post_request =
     request.Request(
       method: http.Post,
@@ -320,7 +334,7 @@ pub fn update_or_create_post_on_page(
       query: None,
     )
     |> request.set_query([
-      #("access_token", facebook_page_token),
+      #("access_token", page_token),
       #("message", option.unwrap(facebook_product.description, "")),
     ])
 
