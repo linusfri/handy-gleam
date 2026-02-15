@@ -346,6 +346,7 @@ pub type CreateProductIntegrationsRow {
     product_id: Int,
     platform: IntegrationPlatform,
     resource_id: Option(String),
+    resource_type: ResourceTypeEnum,
     sync_status: SyncStatus,
   )
 }
@@ -361,36 +362,43 @@ pub fn create_product_integrations(
   arg_1: Int,
   arg_2: List(IntegrationPlatform),
   arg_3: List(String),
+  arg_4: List(ResourceTypeEnum),
 ) -> Result(pog.Returned(CreateProductIntegrationsRow), pog.QueryError) {
   let decoder = {
     use id <- decode.field(0, decode.int)
     use product_id <- decode.field(1, decode.int)
     use platform <- decode.field(2, integration_platform_decoder())
     use resource_id <- decode.field(3, decode.optional(decode.string))
-    use sync_status <- decode.field(4, sync_status_decoder())
+    use resource_type <- decode.field(4, resource_type_enum_decoder())
+    use sync_status <- decode.field(5, sync_status_decoder())
     decode.success(CreateProductIntegrationsRow(
       id:,
       product_id:,
       platform:,
       resource_id:,
+      resource_type:,
       sync_status:,
     ))
   }
 
   "-- name: create_product_integrations
 -- Insert product integrations
-insert into product_integrations (product_id, platform, resource_id)
+insert into product_integrations (product_id, platform, resource_id, resource_type)
 select $1, * from unnest(
   $2::integration_platform[],
-  $3::varchar[]
+  $3::varchar[],
+  $4::resource_type_enum[]
 )
-returning id, product_id, platform, resource_id, sync_status;"
+returning id, product_id, platform, resource_id, resource_type, sync_status;"
   |> pog.query
   |> pog.parameter(pog.int(arg_1))
   |> pog.parameter(
     pog.array(fn(value) { integration_platform_encoder(value) }, arg_2),
   )
   |> pog.parameter(pog.array(fn(value) { pog.text(value) }, arg_3))
+  |> pog.parameter(
+    pog.array(fn(value) { resource_type_enum_encoder(value) }, arg_4),
+  )
   |> pog.returning(decoder)
   |> pog.execute(db)
 }
@@ -889,6 +897,7 @@ pub type SelectProductIntegrationsRow {
     product_id: Int,
     platform: IntegrationPlatform,
     resource_id: Option(String),
+    resource_type: ResourceTypeEnum,
     sync_status: SyncStatus,
     external_id: Option(String),
     synced_at: Option(Timestamp),
@@ -910,14 +919,16 @@ pub fn select_product_integrations(
     use product_id <- decode.field(1, decode.int)
     use platform <- decode.field(2, integration_platform_decoder())
     use resource_id <- decode.field(3, decode.optional(decode.string))
-    use sync_status <- decode.field(4, sync_status_decoder())
-    use external_id <- decode.field(5, decode.optional(decode.string))
-    use synced_at <- decode.field(6, decode.optional(pog.timestamp_decoder()))
+    use resource_type <- decode.field(4, resource_type_enum_decoder())
+    use sync_status <- decode.field(5, sync_status_decoder())
+    use external_id <- decode.field(6, decode.optional(decode.string))
+    use synced_at <- decode.field(7, decode.optional(pog.timestamp_decoder()))
     decode.success(SelectProductIntegrationsRow(
       id:,
       product_id:,
       platform:,
       resource_id:,
+      resource_type:,
       sync_status:,
       external_id:,
       synced_at:,
@@ -931,11 +942,87 @@ select
   product_id,
   platform,
   resource_id,
+  resource_type,
   sync_status,
   external_id,
   synced_at
 from product_integrations
 where product_id = $1;"
+  |> pog.query
+  |> pog.parameter(pog.int(arg_1))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
+/// A row you get from running the `select_product_integrations_facebook_pages` query
+/// defined in `./src/auth_server/sql/select_product_integrations_facebook_pages.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.6.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type SelectProductIntegrationsFacebookPagesRow {
+  SelectProductIntegrationsFacebookPagesRow(
+    id: Int,
+    product_id: Int,
+    platform: IntegrationPlatform,
+    resource_id: Option(String),
+    resource_type: ResourceTypeEnum,
+    sync_status: SyncStatus,
+    external_id: Option(String),
+    synced_at: Option(Timestamp),
+  )
+}
+
+/// name: select_product_integrations_facebook_pages
+/// Get product integrations by product_id and resource_type 'page' for Facebook platform
+///
+/// > 🐿️ This function was generated automatically using v4.6.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn select_product_integrations_facebook_pages(
+  db: pog.Connection,
+  arg_1: Int,
+) -> Result(
+  pog.Returned(SelectProductIntegrationsFacebookPagesRow),
+  pog.QueryError,
+) {
+  let decoder = {
+    use id <- decode.field(0, decode.int)
+    use product_id <- decode.field(1, decode.int)
+    use platform <- decode.field(2, integration_platform_decoder())
+    use resource_id <- decode.field(3, decode.optional(decode.string))
+    use resource_type <- decode.field(4, resource_type_enum_decoder())
+    use sync_status <- decode.field(5, sync_status_decoder())
+    use external_id <- decode.field(6, decode.optional(decode.string))
+    use synced_at <- decode.field(7, decode.optional(pog.timestamp_decoder()))
+    decode.success(SelectProductIntegrationsFacebookPagesRow(
+      id:,
+      product_id:,
+      platform:,
+      resource_id:,
+      resource_type:,
+      sync_status:,
+      external_id:,
+      synced_at:,
+    ))
+  }
+
+  "-- name: select_product_integrations_facebook_pages
+-- Get product integrations by product_id and resource_type 'page' for Facebook platform
+select
+    id,
+    product_id,
+    platform,
+    resource_id,
+    resource_type,
+    sync_status,
+    external_id,
+    synced_at
+from product_integrations
+where
+    product_id = $1
+    and platform = 'facebook'
+    and resource_type = 'page';"
   |> pog.query
   |> pog.parameter(pog.int(arg_1))
   |> pog.returning(decoder)

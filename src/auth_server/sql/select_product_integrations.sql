@@ -5,6 +5,7 @@ select
   product_id,
   platform,
   resource_id,
+  resource_type,
   sync_status,
   external_id,
   synced_at

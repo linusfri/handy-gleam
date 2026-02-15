@@ -32,7 +32,11 @@ pub type Product {
 }
 
 pub type ProductIntegration {
-  ProductIntegration(platform: sql.IntegrationPlatform, resource_id: String)
+  ProductIntegration(
+    platform: sql.IntegrationPlatform,
+    resource_id: String,
+    resource_type: sql.ResourceTypeEnum,
+  )
 }
 
 pub type ProductMutationRequest {
@@ -44,6 +48,14 @@ pub type ProductMutationRequest {
     image_ids: List(Int),
     integrations: List(ProductIntegration),
   )
+}
+
+pub fn resource_type_enum_decoder() -> decode.Decoder(sql.ResourceTypeEnum) {
+  use resource_type_enum <- decode.then(decode.string)
+  case resource_type_enum {
+    "page" -> decode.success(sql.Page)
+    _ -> decode.failure(sql.Page, "ResourceTypeEnum")
+  }
 }
 
 pub fn update_product_row_to_facebook_product(
@@ -143,8 +155,12 @@ fn integration_platform_decoder() -> decode.Decoder(sql.IntegrationPlatform) {
 fn product_integration_decoder() -> decode.Decoder(ProductIntegration) {
   use platform <- decode.field("platform", integration_platform_decoder())
   use resource_id <- decode.field("resource_id", decode.string)
+  use resource_type <- decode.field(
+    "resource_type",
+    resource_type_enum_decoder(),
+  )
 
-  decode.success(ProductIntegration(platform:, resource_id:))
+  decode.success(ProductIntegration(platform:, resource_id:, resource_type:))
 }
 
 /// For both product update and create

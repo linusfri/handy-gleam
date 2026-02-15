@@ -74,8 +74,17 @@ fn create_product_integrations_tx(
       let resource_ids =
         integrations
         |> list.map(fn(integration) { integration.resource_id })
+      let resource_types =
+        integrations
+        |> list.map(fn(integration) { integration.resource_type })
 
-      sql.create_product_integrations(tx, product_id, platforms, resource_ids)
+      sql.create_product_integrations(
+        tx,
+        product_id,
+        platforms,
+        resource_ids,
+        resource_types,
+      )
       |> result.map_error(fn(err) { string.inspect(err) })
     }
   }

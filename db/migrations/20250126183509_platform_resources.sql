@@ -1,5 +1,6 @@
 -- migrate:up
 create type resource_type_enum as enum ('page');
+create type integration_platform as enum ('instagram', 'facebook');
 
 create table platform_resources (
     id serial primary key,
@@ -27,3 +28,4 @@ create index idx_platform_resources_external_id on platform_resources (external_
 -- migrate:down
 drop type resource_type_enum;
 drop table platform_resources;
+drop type integration_platform;

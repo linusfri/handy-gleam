@@ -283,34 +283,30 @@ pub fn update_or_create_post_on_page(
   integration: sql.IntegrationPlatform,
   facebook_product: FacebookProduct,
 ) {
-  use product_integrations <- result.try(
-    sql.select_product_integrations(ctx.db, facebook_product.id)
+  use facebook_pages <- result.try(
+    sql.select_product_integrations_facebook_pages(ctx.db, facebook_product.id)
     |> result.map_error(fn(err) {
       logger.log_error_with_context(
         "facebook_instagram:update_or_create_post",
         err,
       )
-      "Could not fetch product integrations"
+      "Did not found any facebook page integrations for this product"
     }),
   )
 
-  use facebook_integration <- result.try(
-    product_integrations.rows
-    |> list.find(fn(product_integration) {
-      product_integration.platform == sql.Facebook
-    })
-    |> result.replace_error("No Facebook integration found for this product"),
+  // Just pick the first one for MVP
+  use first_facebook_page <- result.try(
+    list.first(facebook_pages.rows)
+    |> result.map_error(fn(_) { "No facebook page found for this product" }),
   )
+  let page_id = option.unwrap(first_facebook_page.resource_id, "")
 
-  use page_id <- result.try(case facebook_integration.resource_id {
-    Some(id) -> Ok(id)
-    None -> Error("No page_id configured for this product")
-  })
-
-  use facebook_page_token <- result.try(
-    get_page_token(ctx, user, integration, page_id)
-    |> result.map_error(fn(error) { error }),
-  )
+  use facebook_page_token <- result.try(get_page_token(
+    ctx,
+    user,
+    integration,
+    page_id,
+  ))
 
   let update_or_create_post_request =
     request.Request(

@@ -16,3 +16,4 @@ create table products (
 
 -- migrate:down
 drop table products;
+drop type product_status;
