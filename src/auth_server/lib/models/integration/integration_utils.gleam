@@ -2,6 +2,7 @@ import auth_server/global_types
 import auth_server/lib/models/integration/integration_types.{type FacebookPage}
 import auth_server/lib/models/user/user_types.{type User}
 import auth_server/sql
+import gleam/int
 import gleam/list
 import gleam/result
 import gleam/string
@@ -75,11 +76,12 @@ pub fn get_platform_resource(
   }
 }
 
-pub fn update_product_integration_external_id(
-  ctx: global_types.Context,
-  product_id: String,
-  resource_id: String,
-  external_id: String,
-) {
-  todo
+pub fn build_facbook_media_query(media: List(String)) -> List(#(String, String)) {
+  media
+  |> list.index_map(fn(id, index) {
+    #(
+      "attached_media[" <> int.to_string(index) <> "]",
+      "{\"media_fbid\":\"" <> id <> "\"}",
+    )
+  })
 }

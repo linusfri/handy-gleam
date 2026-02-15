@@ -99,7 +99,7 @@ fn product_image_response_decoder() -> decode.Decoder(File) {
     filename:,
     context_type:,
     file_type:,
-    uri: option.Some(file_system.file_url(filename, context_type, file_type)),
+    uri: option.Some(file_system.file_uri(filename, context_type, file_type)),
   ))
 }
 

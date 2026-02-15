@@ -42,7 +42,7 @@ pub fn save_base64_image(
 /// delete_image(file_of_type_file)
 /// ```
 pub fn delete_file(file: File) -> Result(Nil, String) {
-  case simplifile.delete(file_url_from_file(file)) {
+  case simplifile.delete(file_uri_from_file(file)) {
     Ok(_) -> Ok(Nil)
     Error(err) -> Error("Failed to delete image: " <> string.inspect(err))
   }
@@ -83,7 +83,7 @@ pub fn create_file(file: File) {
 }
 
 /// Get file url for the file name in specified directory
-pub fn file_url_from_file(file: File) -> String {
+pub fn file_uri_from_file(file: File) -> String {
   let static_files_directory = config().static_directory
 
   let context_dir = case file.context_type {
@@ -107,7 +107,7 @@ pub fn file_url_from_file(file: File) -> String {
   <> file.filename
 }
 
-pub fn file_url(
+pub fn file_uri(
   filename: String,
   context_type: file_types.ContextType,
   file_type: file_types.FileType,
@@ -131,4 +131,10 @@ pub fn file_url(
   }
   <> "/"
   <> filename
+}
+
+pub fn file_url_from_file(file: File) {
+  let dir_path = file_uri_from_file(file)
+
+  config().app_url <> "/" <> dir_path
 }

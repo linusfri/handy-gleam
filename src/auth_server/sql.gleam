@@ -612,6 +612,150 @@ where
   |> pog.execute(db)
 }
 
+/// A row you get from running the `select_file_integration_by_file_and_resource` query
+/// defined in `./src/auth_server/sql/select_file_integration_by_file_and_resource.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.6.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type SelectFileIntegrationByFileAndResourceRow {
+  SelectFileIntegrationByFileAndResourceRow(
+    id: Int,
+    file_id: Int,
+    platform: IntegrationPlatform,
+    resource_id: Option(String),
+    external_id: Option(String),
+    synced_at: Option(Timestamp),
+    metadata: Option(String),
+    created_at: Option(Timestamp),
+    updated_at: Option(Timestamp),
+  )
+}
+
+/// name: select_file_integration_by_file_and_resource
+/// Select file integration by file_id, platform, and resource_id
+///
+/// > 🐿️ This function was generated automatically using v4.6.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn select_file_integration_by_file_and_resource(
+  db: pog.Connection,
+  arg_1: Int,
+  arg_2: IntegrationPlatform,
+  arg_3: String,
+) -> Result(
+  pog.Returned(SelectFileIntegrationByFileAndResourceRow),
+  pog.QueryError,
+) {
+  let decoder = {
+    use id <- decode.field(0, decode.int)
+    use file_id <- decode.field(1, decode.int)
+    use platform <- decode.field(2, integration_platform_decoder())
+    use resource_id <- decode.field(3, decode.optional(decode.string))
+    use external_id <- decode.field(4, decode.optional(decode.string))
+    use synced_at <- decode.field(5, decode.optional(pog.timestamp_decoder()))
+    use metadata <- decode.field(6, decode.optional(decode.string))
+    use created_at <- decode.field(7, decode.optional(pog.timestamp_decoder()))
+    use updated_at <- decode.field(8, decode.optional(pog.timestamp_decoder()))
+    decode.success(SelectFileIntegrationByFileAndResourceRow(
+      id:,
+      file_id:,
+      platform:,
+      resource_id:,
+      external_id:,
+      synced_at:,
+      metadata:,
+      created_at:,
+      updated_at:,
+    ))
+  }
+
+  "-- name: select_file_integration_by_file_and_resource
+-- Select file integration by file_id, platform, and resource_id
+select id, file_id, platform, resource_id, external_id, synced_at, metadata, created_at, updated_at
+from file_integration
+where file_id = $1 and platform = $2 and resource_id = $3;
+"
+  |> pog.query
+  |> pog.parameter(pog.int(arg_1))
+  |> pog.parameter(integration_platform_encoder(arg_2))
+  |> pog.parameter(pog.text(arg_3))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
+/// A row you get from running the `select_file_integrations_by_files_and_resource` query
+/// defined in `./src/auth_server/sql/select_file_integrations_by_files_and_resource.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.6.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type SelectFileIntegrationsByFilesAndResourceRow {
+  SelectFileIntegrationsByFilesAndResourceRow(
+    id: Int,
+    file_id: Int,
+    platform: IntegrationPlatform,
+    resource_id: Option(String),
+    external_id: Option(String),
+    synced_at: Option(Timestamp),
+    metadata: Option(String),
+    created_at: Option(Timestamp),
+    updated_at: Option(Timestamp),
+  )
+}
+
+/// name: select_file_integrations_by_files_and_resource
+/// Select file integrations by file_ids array, platform, and resource_id
+///
+/// > 🐿️ This function was generated automatically using v4.6.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn select_file_integrations_by_files_and_resource(
+  db: pog.Connection,
+  arg_1: List(Int),
+  arg_2: IntegrationPlatform,
+  arg_3: String,
+) -> Result(
+  pog.Returned(SelectFileIntegrationsByFilesAndResourceRow),
+  pog.QueryError,
+) {
+  let decoder = {
+    use id <- decode.field(0, decode.int)
+    use file_id <- decode.field(1, decode.int)
+    use platform <- decode.field(2, integration_platform_decoder())
+    use resource_id <- decode.field(3, decode.optional(decode.string))
+    use external_id <- decode.field(4, decode.optional(decode.string))
+    use synced_at <- decode.field(5, decode.optional(pog.timestamp_decoder()))
+    use metadata <- decode.field(6, decode.optional(decode.string))
+    use created_at <- decode.field(7, decode.optional(pog.timestamp_decoder()))
+    use updated_at <- decode.field(8, decode.optional(pog.timestamp_decoder()))
+    decode.success(SelectFileIntegrationsByFilesAndResourceRow(
+      id:,
+      file_id:,
+      platform:,
+      resource_id:,
+      external_id:,
+      synced_at:,
+      metadata:,
+      created_at:,
+      updated_at:,
+    ))
+  }
+
+  "-- name: select_file_integrations_by_files_and_resource
+-- Select file integrations by file_ids array, platform, and resource_id
+select id, file_id, platform, resource_id, external_id, synced_at, metadata, created_at, updated_at
+from file_integration
+where file_id = any($1::int[]) and platform = $2 and resource_id = $3;
+"
+  |> pog.query
+  |> pog.parameter(pog.array(fn(value) { pog.int(value) }, arg_1))
+  |> pog.parameter(integration_platform_encoder(arg_2))
+  |> pog.parameter(pog.text(arg_3))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
 /// A row you get from running the `select_files` query
 /// defined in `./src/auth_server/sql/select_files.sql`.
 ///
@@ -724,6 +868,49 @@ WHERE user_id = $1::VARCHAR
   |> pog.parameter(pog.text(arg_1))
   |> pog.parameter(integration_platform_encoder(arg_2))
   |> pog.parameter(pog.text(arg_3))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
+/// A row you get from running the `select_platform_resource_id_by_external_id` query
+/// defined in `./src/auth_server/sql/select_platform_resource_id_by_external_id.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.6.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type SelectPlatformResourceIdByExternalIdRow {
+  SelectPlatformResourceIdByExternalIdRow(id: Int)
+}
+
+/// name: select_platform_resource_id_by_external_id
+/// Get platform_resource id by external_id and platform
+///
+/// > 🐿️ This function was generated automatically using v4.6.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn select_platform_resource_id_by_external_id(
+  db: pog.Connection,
+  arg_1: String,
+  arg_2: IntegrationPlatform,
+) -> Result(
+  pog.Returned(SelectPlatformResourceIdByExternalIdRow),
+  pog.QueryError,
+) {
+  let decoder = {
+    use id <- decode.field(0, decode.int)
+    decode.success(SelectPlatformResourceIdByExternalIdRow(id:))
+  }
+
+  "-- name: select_platform_resource_id_by_external_id
+-- Get platform_resource id by external_id and platform
+select id
+from platform_resources
+where external_id = $1 and platform = $2
+limit 1;
+"
+  |> pog.query
+  |> pog.parameter(pog.text(arg_1))
+  |> pog.parameter(integration_platform_encoder(arg_2))
   |> pog.returning(decoder)
   |> pog.execute(db)
 }
@@ -1217,8 +1404,8 @@ pub type UpdateOrCreateFileIntegrationRow {
     id: Int,
     file_id: Int,
     platform: IntegrationPlatform,
-    resource_id: Option(Int),
-    external_id: String,
+    resource_id: Option(String),
+    external_id: Option(String),
     synced_at: Option(Timestamp),
     created_at: Option(Timestamp),
   )
@@ -1234,7 +1421,7 @@ pub fn update_or_create_file_integration(
   db: pog.Connection,
   arg_1: Int,
   arg_2: IntegrationPlatform,
-  arg_3: Int,
+  arg_3: String,
   arg_4: String,
   arg_5: Json,
 ) -> Result(pog.Returned(UpdateOrCreateFileIntegrationRow), pog.QueryError) {
@@ -1242,8 +1429,8 @@ pub fn update_or_create_file_integration(
     use id <- decode.field(0, decode.int)
     use file_id <- decode.field(1, decode.int)
     use platform <- decode.field(2, integration_platform_decoder())
-    use resource_id <- decode.field(3, decode.optional(decode.int))
-    use external_id <- decode.field(4, decode.string)
+    use resource_id <- decode.field(3, decode.optional(decode.string))
+    use external_id <- decode.field(4, decode.optional(decode.string))
     use synced_at <- decode.field(5, decode.optional(pog.timestamp_decoder()))
     use created_at <- decode.field(6, decode.optional(pog.timestamp_decoder()))
     decode.success(UpdateOrCreateFileIntegrationRow(
@@ -1273,7 +1460,7 @@ returning id, file_id, platform, resource_id, external_id, synced_at, created_at
   |> pog.query
   |> pog.parameter(pog.int(arg_1))
   |> pog.parameter(integration_platform_encoder(arg_2))
-  |> pog.parameter(pog.int(arg_3))
+  |> pog.parameter(pog.text(arg_3))
   |> pog.parameter(pog.text(arg_4))
   |> pog.parameter(pog.text(json.to_string(arg_5)))
   |> pog.returning(decoder)

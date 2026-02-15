@@ -8,6 +8,7 @@ pub type Config {
     secret_key: String,
     auth_endpoint: String,
     admin_endpoint: String,
+    app_url: String,
     pghost: String,
     static_directory: String,
     facebook_base_url: String,
@@ -23,6 +24,7 @@ pub fn get_config() -> Config {
     "SECRET_KEY",
     "AUTH_ENDPOINT",
     "ADMIN_ENDPOINT",
+    "APP_URL",
     "PGHOST",
     "STATIC_DIRECTORY",
     "FACEBOOK_BASE_URL",
@@ -45,6 +47,7 @@ pub fn get_config() -> Config {
   let assert Ok(secret_key) = envoy.get("SECRET_KEY")
   let assert Ok(auth_endpoint) = envoy.get("AUTH_ENDPOINT")
   let assert Ok(admin_endpoint) = envoy.get("ADMIN_ENDPOINT")
+  let assert Ok(app_url) = envoy.get("APP_URL")
   let assert Ok(pghost) = envoy.get("PGHOST")
   let assert Ok(static_directory) = envoy.get("STATIC_DIRECTORY")
   let assert Ok(facebook_base_url) = envoy.get("FACEBOOK_BASE_URL")
@@ -57,6 +60,7 @@ pub fn get_config() -> Config {
     secret_key,
     auth_endpoint,
     admin_endpoint,
+    app_url,
     pghost,
     static_directory,
     facebook_base_url,

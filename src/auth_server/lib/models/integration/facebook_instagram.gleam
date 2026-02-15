@@ -1,6 +1,8 @@
 import auth_server/config.{config}
 import auth_server/global_types
 import auth_server/lib/models/auth/auth_utils
+import auth_server/lib/models/file/file_types
+import auth_server/lib/models/file_system/file_system
 import auth_server/lib/models/integration/integration_transform
 import auth_server/lib/models/integration/integration_types
 import auth_server/lib/models/integration/integration_utils
@@ -17,6 +19,7 @@ import gleam/json
 import gleam/list
 import gleam/option.{None, Some}
 import gleam/result
+import gleam/set
 import pog
 import wisp
 
@@ -309,21 +312,60 @@ pub fn update_or_create_post_on_page(
     page_id,
   ))
 
+  use external_image_ids <- result.try(create_or_update_files_on_page(
+    ctx,
+    facebook_product,
+    sql.Facebook,
+    page_id,
+    facebook_page_token,
+  ))
+
   // If there is an external id it means that we have created a post for this product on this page
   case facebook_page_resource.external_id {
     Some(external_id) ->
-      update_post_on_page(facebook_product, external_id, facebook_page_token)
+      update_post_on_page(
+        facebook_product,
+        external_id,
+        external_image_ids,
+        facebook_page_token,
+      )
     None ->
-      create_post_on_page(ctx, facebook_product, page_id, facebook_page_token)
+      create_post_on_page(
+        ctx,
+        facebook_product,
+        external_image_ids,
+        page_id,
+        facebook_page_token,
+      )
   }
 }
 
 fn create_post_on_page(
   ctx: global_types.Context,
   facebook_product: FacebookProduct,
+  external_image_ids: List(String),
   page_id: String,
   page_token: String,
 ) {
+  let base_query_params = [
+    #("access_token", page_token),
+    #(
+      "message",
+      facebook_product.name
+        <> "\n\n"
+        <> option.unwrap(facebook_product.description, ""),
+    ),
+  ]
+
+  let query_params = case external_image_ids {
+    [] -> base_query_params
+    external_image_ids ->
+      list.append(
+        base_query_params,
+        integration_utils.build_facbook_media_query(external_image_ids),
+      )
+  }
+
   let create_post_request =
     request.Request(
       method: http.Post,
@@ -335,15 +377,7 @@ fn create_post_on_page(
       path: page_id <> "/feed",
       query: None,
     )
-    |> request.set_query([
-      #("access_token", page_token),
-      #(
-        "message",
-        facebook_product.name
-          <> "\n\n"
-          <> option.unwrap(facebook_product.description, ""),
-      ),
-    ])
+    |> request.set_query(query_params)
 
   use create_post_response <- result.try(api_client.send_request(
     create_post_request,
@@ -389,8 +423,28 @@ fn create_post_on_page(
 fn update_post_on_page(
   facebook_product: FacebookProduct,
   external_id: String,
+  external_image_ids: List(String),
   page_token: String,
 ) {
+  let base_query_params = [
+    #("access_token", page_token),
+    #(
+      "message",
+      facebook_product.name
+        <> "\n\n"
+        <> option.unwrap(facebook_product.description, ""),
+    ),
+  ]
+
+  let query_params = case external_image_ids {
+    [] -> base_query_params
+    external_image_ids ->
+      list.append(
+        base_query_params,
+        integration_utils.build_facbook_media_query(external_image_ids),
+      )
+  }
+
   let update_post_request =
     request.Request(
       method: http.Post,
@@ -402,15 +456,7 @@ fn update_post_on_page(
       path: external_id,
       query: None,
     )
-    |> request.set_query([
-      #("access_token", page_token),
-      #(
-        "message",
-        facebook_product.name
-          <> "\n\n"
-          <> option.unwrap(facebook_product.description, ""),
-      ),
-    ])
+    |> request.set_query(query_params)
 
   let res = case api_client.send_request(update_post_request) {
     Ok(_) -> Ok("Post updated")
@@ -420,11 +466,175 @@ fn update_post_on_page(
   res
 }
 
-fn update_or_create_files_on_page(
-  file_id: Int,
+fn create_or_update_files_on_page(
+  ctx: global_types.Context,
+  facebook_product: FacebookProduct,
   platform: sql.IntegrationPlatform,
   page_id: String,
-  external_id: String,
+  page_token: String,
+) -> Result(List(String), String) {
+  let image_ids =
+    facebook_product.images
+    |> list.filter_map(fn(image) { image.id |> option.to_result(Nil) })
+
+  use existing_file_integrations <- result.try(
+    pog.transaction(ctx.db, fn(tx) {
+      sql.select_file_integrations_by_files_and_resource(
+        tx,
+        image_ids,
+        platform,
+        page_id,
+      )
+    })
+    |> result.map_error(fn(err) {
+      logger.log_error_with_context(
+        "facebook_instagram:create_files_on_page",
+        err,
+      )
+      "Could not query file integrations"
+    }),
+  )
+
+  let new_file_ids = image_ids |> set.from_list
+  let existing_file_ids =
+    existing_file_integrations.rows
+    |> list.map(fn(file_integration) { file_integration.file_id })
+    |> set.from_list
+
+  let file_ids_to_create = set.difference(new_file_ids, existing_file_ids)
+  let files_to_create =
+    facebook_product.images
+    |> list.filter(fn(image) {
+      set.contains(file_ids_to_create, option.unwrap(image.id, 0))
+    })
+
+  use _ <- result.try(
+    upload_files_to_page(ctx, files_to_create, platform, page_id, page_token)
+    |> result.map_error(fn(error) {
+      logger.log_error_with_context(
+        "facebook_instagram:create_files_on_page",
+        error,
+      )
+      "Failed to upload and save files in transaction"
+    }),
+  )
+
+  get_all_files_for_page_and_platform(ctx, image_ids, platform, page_id)
+}
+
+fn get_all_files_for_page_and_platform(
+  ctx: global_types.Context,
+  file_ids: List(Int),
+  platform: sql.IntegrationPlatform,
+  page_id: String,
 ) {
-  todo
+  use all_file_integrations <- result.try(
+    pog.transaction(ctx.db, fn(tx) {
+      sql.select_file_integrations_by_files_and_resource(
+        tx,
+        file_ids,
+        platform,
+        page_id,
+      )
+    })
+    |> result.map_error(fn(err) {
+      logger.log_error_with_context(
+        "facebook_instagram:create_files_on_page",
+        err,
+      )
+      "Could not query file integrations after upload"
+    }),
+  )
+
+  Ok(
+    all_file_integrations.rows
+    |> list.filter(fn(file_integration) {
+      option.is_some(file_integration.external_id)
+    })
+    |> list.map(fn(file_integration) {
+      option.unwrap(file_integration.external_id, "")
+    }),
+  )
+}
+
+fn upload_files_to_page(
+  ctx: global_types.Context,
+  files: List(file_types.File),
+  platform: sql.IntegrationPlatform,
+  page_id: String,
+  page_token: String,
+) -> Result(Nil, String) {
+  files
+  |> list.try_each(fn(file) {
+    let upload_request =
+      request.Request(
+        method: http.Post,
+        headers: [],
+        body: "",
+        scheme: http.Https,
+        host: config().facebook_base_url,
+        port: None,
+        path: page_id <> "/photos",
+        query: None,
+      )
+      |> request.set_query([
+        #("access_token", page_token),
+        #("url", file_system.file_url_from_file(file)),
+        #("published", "false"),
+        // To not publish photos on upload
+      ])
+
+    use upload_response <- result.try(
+      api_client.send_request(upload_request)
+      |> result.map_error(fn(err) {
+        logger.log_error_with_context(
+          "facebook_instagram:upload_files_to_page",
+          err,
+        )
+        "Failed to upload photo to Facebook"
+      }),
+    )
+
+    let facebook_id_decoder = {
+      use id <- decode.field("id", decode.string)
+      decode.success(id)
+    }
+
+    use external_id <- result.try(
+      json.parse(from: upload_response.body, using: facebook_id_decoder)
+      |> result.map_error(fn(err) {
+        logger.log_error_with_context(
+          "facebook_instagram:upload_files_to_page",
+          err,
+        )
+        "Failed to decode photo id from Facebook response"
+      }),
+    )
+
+    // Save the file integration to database
+    use file_id <- result.try(file.id |> option.to_result("File has no ID"))
+
+    // TODO: Redo this query to not run in a loop.
+    use _ <- result.try(
+      pog.transaction(ctx.db, fn(tx) {
+        sql.update_or_create_file_integration(
+          tx,
+          file_id,
+          platform,
+          page_id,
+          external_id,
+          json.null(),
+        )
+      })
+      |> result.map_error(fn(error) {
+        logger.log_error_with_context(
+          "facebook_instagram:upload_files_to_page",
+          error,
+        )
+        "Failed to save file integration to database"
+      }),
+    )
+
+    Ok(Nil)
+  })
 }
