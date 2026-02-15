@@ -5,6 +5,7 @@
 ////
 
 import gleam/dynamic/decode
+import gleam/json.{type Json}
 import gleam/option.{type Option}
 import gleam/time/timestamp.{type Timestamp}
 import pog
@@ -1201,6 +1202,80 @@ limit 1;"
   |> pog.query
   |> pog.parameter(pog.text(arg_1))
   |> pog.parameter(integration_platform_encoder(arg_2))
+  |> pog.returning(decoder)
+  |> pog.execute(db)
+}
+
+/// A row you get from running the `update_or_create_file_integration` query
+/// defined in `./src/auth_server/sql/update_or_create_file_integration.sql`.
+///
+/// > 🐿️ This type definition was generated automatically using v4.6.0 of the
+/// > [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub type UpdateOrCreateFileIntegrationRow {
+  UpdateOrCreateFileIntegrationRow(
+    id: Int,
+    file_id: Int,
+    platform: IntegrationPlatform,
+    resource_id: Option(Int),
+    external_id: String,
+    synced_at: Option(Timestamp),
+    created_at: Option(Timestamp),
+  )
+}
+
+/// name: update_or_create_file_integration
+/// update or create a file integration record
+///
+/// > 🐿️ This function was generated automatically using v4.6.0 of
+/// > the [squirrel package](https://github.com/giacomocavalieri/squirrel).
+///
+pub fn update_or_create_file_integration(
+  db: pog.Connection,
+  arg_1: Int,
+  arg_2: IntegrationPlatform,
+  arg_3: Int,
+  arg_4: String,
+  arg_5: Json,
+) -> Result(pog.Returned(UpdateOrCreateFileIntegrationRow), pog.QueryError) {
+  let decoder = {
+    use id <- decode.field(0, decode.int)
+    use file_id <- decode.field(1, decode.int)
+    use platform <- decode.field(2, integration_platform_decoder())
+    use resource_id <- decode.field(3, decode.optional(decode.int))
+    use external_id <- decode.field(4, decode.string)
+    use synced_at <- decode.field(5, decode.optional(pog.timestamp_decoder()))
+    use created_at <- decode.field(6, decode.optional(pog.timestamp_decoder()))
+    decode.success(UpdateOrCreateFileIntegrationRow(
+      id:,
+      file_id:,
+      platform:,
+      resource_id:,
+      external_id:,
+      synced_at:,
+      created_at:,
+    ))
+  }
+
+  "-- name: update_or_create_file_integration
+-- update or create a file integration record
+insert into file_integration (file_id, platform, resource_id, external_id, metadata)
+values ($1, $2, $3, $4, coalesce($5::jsonb, '{}'))
+on conflict (file_id, platform, resource_id)
+do update set
+    external_id = EXCLUDED.external_id,
+    metadata = EXCLUDED.metadata,
+    synced_at = now(),
+    updated_at = now()
+
+returning id, file_id, platform, resource_id, external_id, synced_at, created_at;
+"
+  |> pog.query
+  |> pog.parameter(pog.int(arg_1))
+  |> pog.parameter(integration_platform_encoder(arg_2))
+  |> pog.parameter(pog.int(arg_3))
+  |> pog.parameter(pog.text(arg_4))
+  |> pog.parameter(pog.text(json.to_string(arg_5)))
   |> pog.returning(decoder)
   |> pog.execute(db)
 }

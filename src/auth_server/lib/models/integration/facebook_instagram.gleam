@@ -419,3 +419,12 @@ fn update_post_on_page(
 
   res
 }
+
+fn update_or_create_files_on_page(
+  file_id: Int,
+  platform: sql.IntegrationPlatform,
+  page_id: String,
+  external_id: String,
+) {
+  todo
+}
