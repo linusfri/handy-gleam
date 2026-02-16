@@ -2,7 +2,7 @@
   description = "Flake for build gleam application.";
 
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs?ref=release-25.05";
+    nixpkgs.url = "github:nixos/nixpkgs?ref=release-25.11";
     nixpkgs-unstable.url = "github:nixos/nixpkgs/nixos-unstable";
     nix-gleam.url = "github:arnarg/nix-gleam";
     utils.url = "github:numtide/flake-utils";

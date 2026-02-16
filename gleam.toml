@@ -1,4 +1,4 @@
-name = "auth_server"
+name = "handygleam"
 version = "1.0.0"
 
 [dependencies]
