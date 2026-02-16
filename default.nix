@@ -21,4 +21,8 @@ pkgs.buildGleamApplication {
   };
 
   src = ./.;
+
+  postInstall = ''
+    cp -r $src/db $out
+  '';
 }
