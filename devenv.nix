@@ -35,8 +35,8 @@ in
     };
 
     services.auth-server.postgres = {
-      user = "auth_server";
-      dbName = "auth_server";
+      user = "handygleam";
+      dbName = "handygleam";
     };
 
     processes.cloudflare-tunnel.exec = ''

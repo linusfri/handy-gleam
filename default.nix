@@ -3,7 +3,7 @@
 pkgs.buildGleamApplication {
   # The pname and version will be read from the `gleam.toml`
   # Can be overwritten here.
-  # pname = "auth_server";
+  # pname = "handygleam";
   # version = "1.0.0";
 
   # The target is read from the `gleam.toml` file too.

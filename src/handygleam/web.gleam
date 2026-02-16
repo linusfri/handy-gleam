@@ -1,0 +1,36 @@
+import handygleam/config.{config}
+import handygleam/lib/models/user/user
+import handygleam/lib/models/user/user_types.{type User}
+import handygleam/lib/utils/logger
+import wisp
+
+pub fn middleware(
+  req: wisp.Request,
+  handle_request: fn(wisp.Request) -> wisp.Response,
+) -> wisp.Response {
+  let req = wisp.method_override(req)
+  use <- wisp.log_request(req)
+  use <- wisp.rescue_crashes
+  use req <- wisp.handle_head(req)
+  use req <- wisp.csrf_known_header_protection(req)
+  use <- wisp.serve_static(
+    req,
+    under: "/static",
+    from: config().static_directory,
+  )
+
+  handle_request(req)
+}
+
+pub fn authenticated_middleware(
+  req: wisp.Request,
+  handle_request: fn(wisp.Request, User) -> wisp.Response,
+) -> wisp.Response {
+  case user.get_session_user(req) {
+    Ok(user) -> handle_request(req, user)
+    Error(wisp_error) -> {
+      logger.log_error(wisp_error)
+      wisp_error
+    }
+  }
+}

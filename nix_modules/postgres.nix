@@ -12,12 +12,12 @@ in
     user = lib.mkOption {
       type = lib.types.str;
       description = "Database user.";
-      default = "auth_server";
+      default = "handygleam";
     };
     dbName = lib.mkOption {
       type = lib.types.str;
       description = "Database user.";
-      default = "auth_server";
+      default = "handygleam";
     };
   };
 
