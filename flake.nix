@@ -34,8 +34,8 @@
         };
       in
       {
-        packages.auth-server = pkgs.callPackage ./. { pkgs = pkgsUnstable; };
-        packages.default = self.outputs.packages.${system}.auth-server;
+        packages.handygleam = pkgs.callPackage ./. { pkgs = pkgsUnstable; };
+        packages.default = self.outputs.packages.${system}.handygleam;
       }
     );
 }
