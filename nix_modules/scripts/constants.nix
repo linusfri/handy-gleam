@@ -1,6 +1,6 @@
 {config, ...}:
 let
-  dbCfg = config.services.auth-server.postgres;
+  dbCfg = config.services.handy-gleam.postgres;
 in
 {
   dbPermissionsAndOwnership = ''
