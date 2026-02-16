@@ -12,14 +12,14 @@ in
       echo 'export DATABASE_URL="postgres://${dbCfg.user}@/${dbCfg.dbName}?host=$PGHOST&sslmode=disable"'
     '';
 
-    scripts.set-squirrel-db-url.exec = ''
-      echo 'export DATABASE_URL="postgres://postgres@127.0.0.1:5432/${dbCfg.dbName}"'
-    '';
-
     scripts.dbmate-cli.exec = ''
       source <(set-unix-db-url)
 
       dbmate "$@"
+    '';
+
+    scripts.set-squirrel-db-url.exec = ''
+      echo 'export DATABASE_URL="postgres://postgres@127.0.0.1:5432/${dbCfg.dbName}"'
     '';
 
     scripts.migrate-fresh.exec = ''
