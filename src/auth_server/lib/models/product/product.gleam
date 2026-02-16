@@ -19,45 +19,59 @@ pub fn create_product(
     |> result.map_error(fn(errors) { string.inspect(errors) }),
   )
 
-  pog.transaction(ctx.db, fn(tx) {
-    use create_product_db_result <- result.try(
-      sql.create_product(
-        tx,
-        create_product_request.name,
-        option.unwrap(create_product_request.description, ""),
-        create_product_request.status,
-        create_product_request.price,
+  let created_product_row =
+    pog.transaction(ctx.db, fn(tx) {
+      use create_product_db_result <- result.try(
+        sql.create_product(
+          tx,
+          create_product_request.name,
+          option.unwrap(create_product_request.description, ""),
+          create_product_request.status,
+          create_product_request.price,
+        )
+        |> result.map_error(fn(err) {
+          "Could not create product | " <> string.inspect(err)
+        }),
       )
-      |> result.map_error(fn(err) {
-        "Could not create product | " <> string.inspect(err)
-      }),
-    )
 
-    use created_product_row <- result.try(case create_product_db_result.rows {
-      [first, ..] -> Ok(first)
-      [] -> Error("No product ID returned from db query")
+      use created_product_row <- result.try(case create_product_db_result.rows {
+        [first, ..] -> Ok(first)
+        [] -> Error("No product ID returned from db query")
+      })
+
+      use _ <- result.try(link_files_tx(
+        tx,
+        created_product_row.id,
+        create_product_request.image_ids,
+      ))
+
+      use _ <- result.try(
+        sql.create_products_user_groups(
+          tx,
+          [created_product_row.id],
+          user.groups,
+        )
+        |> result.map_error(fn(err) { string.inspect(err) }),
+      )
+
+      use _ <- result.try(create_product_integrations_tx(
+        tx,
+        created_product_row.id,
+        create_product_request.integrations,
+      ))
+
+      Ok(created_product_row)
+    })
+    |> result.map_error(fn(err) {
+      "Transaction failed: " <> string.inspect(err)
     })
 
-    use _ <- result.try(link_files_tx(
-      tx,
-      created_product_row.id,
-      create_product_request.image_ids,
-    ))
-
-    use _ <- result.try(
-      sql.create_products_user_groups(tx, [created_product_row.id], user.groups)
-      |> result.map_error(fn(err) { string.inspect(err) }),
-    )
-
-    use _ <- result.try(create_product_integrations_tx(
-      tx,
-      created_product_row.id,
-      create_product_request.integrations,
-    ))
-
-    Ok(created_product_row)
-  })
-  |> result.map_error(fn(err) { "Transaction failed: " <> string.inspect(err) })
+  case created_product_row {
+    Ok(product) ->
+      get_product_by_id(product.id, ctx, user)
+      |> result.map(product_transform.select_product_row_to_create_product_row)
+    Error(error) -> Error(error)
+  }
 }
 
 fn create_product_integrations_tx(
@@ -101,43 +115,53 @@ pub fn update_product(
     |> result.map_error(fn(err) { string.inspect(err) }),
   )
 
-  pog.transaction(ctx.db, fn(tx) {
-    use update_product_db_result <- result.try(
-      sql.update_product(
-        tx,
-        product_id,
-        product_edit_request.name,
-        option.unwrap(product_edit_request.description, ""),
-        product_edit_request.status,
-        product_edit_request.price,
-        user.groups,
+  let updated_product_row =
+    pog.transaction(ctx.db, fn(tx) {
+      use update_product_db_result <- result.try(
+        sql.update_product(
+          tx,
+          product_id,
+          product_edit_request.name,
+          option.unwrap(product_edit_request.description, ""),
+          product_edit_request.status,
+          product_edit_request.price,
+          user.groups,
+        )
+        |> result.map_error(fn(err) {
+          "Could not update product | " <> string.inspect(err)
+        }),
       )
-      |> result.map_error(fn(err) {
-        "Could not update product | " <> string.inspect(err)
-      }),
-    )
 
-    use _ <- result.try(
-      sql.delete_product_files(tx, product_id, user.groups)
-      |> result.map_error(fn(err) {
-        "Could not delete existing product files | " <> string.inspect(err)
-      }),
-    )
+      use _ <- result.try(
+        sql.delete_product_files(tx, product_id, user.groups)
+        |> result.map_error(fn(err) {
+          "Could not delete existing product files | " <> string.inspect(err)
+        }),
+      )
 
-    use updated_product_row <- result.try(case update_product_db_result.rows {
-      [first_product, ..] -> Ok(first_product)
-      [] -> Error("No product row returned from db query")
+      use updated_product_row <- result.try(case update_product_db_result.rows {
+        [first_product, ..] -> Ok(first_product)
+        [] -> Error("No product row returned from db query")
+      })
+
+      use _ <- result.try(link_files_tx(
+        tx,
+        updated_product_row.id,
+        product_edit_request.image_ids,
+      ))
+
+      Ok(updated_product_row)
+    })
+    |> result.map_error(fn(err) {
+      "Transaction failed: " <> string.inspect(err)
     })
 
-    use _ <- result.try(link_files_tx(
-      tx,
-      updated_product_row.id,
-      product_edit_request.image_ids,
-    ))
-
-    Ok(updated_product_row)
-  })
-  |> result.map_error(fn(err) { "Transaction failed: " <> string.inspect(err) })
+  case updated_product_row {
+    Ok(product) ->
+      get_product_by_id(product.id, ctx, user)
+      |> result.map(product_transform.select_product_row_to_update_product_row)
+    Error(error) -> Error(error)
+  }
 }
 
 pub fn delete_product(
@@ -186,8 +210,7 @@ pub fn get_product_by_id(
           created_at: product.created_at,
           updated_at: product.updated_at,
         ))
-      [] ->
-        Error("product:get_product_by_id | Product not found or access denied")
+      [] -> Error("product:get_product_by_id | Product not found")
     }
   })
   |> result.map_error(fn(err) { "Transaction failed: " <> string.inspect(err) })

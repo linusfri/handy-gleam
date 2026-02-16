@@ -84,6 +84,36 @@ pub fn create_product_row_to_facebook_product(
   )
 }
 
+pub fn select_product_row_to_create_product_row(
+  row: sql.SelectProductsRow,
+) -> sql.CreateProductRow {
+  sql.CreateProductRow(
+    id: row.id,
+    name: row.name,
+    description: row.description,
+    status: row.status,
+    price: row.price,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+    images: row.images,
+  )
+}
+
+pub fn select_product_row_to_update_product_row(
+  row: sql.SelectProductsRow,
+) -> sql.UpdateProductRow {
+  sql.UpdateProductRow(
+    id: row.id,
+    name: row.name,
+    description: row.description,
+    status: row.status,
+    price: row.price,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+    images: row.images,
+  )
+}
+
 fn product_image_response_decoder() -> decode.Decoder(File) {
   use id <- decode.field("id", decode.int)
   use filename <- decode.field("filename", decode.string)

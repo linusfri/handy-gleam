@@ -121,7 +121,7 @@ pub fn get_product(
       logger.log_error(err)
       wisp.json_response(err, 400)
     }
-    Error("Product not found or access denied" as err) -> {
+    Error("product:get_product_by_id | Product not found" as err) -> {
       logger.log_error(err)
       wisp.json_response("Product not found or access denied", 404)
     }

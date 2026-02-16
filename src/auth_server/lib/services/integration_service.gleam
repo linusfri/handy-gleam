@@ -131,7 +131,7 @@ pub fn get_facebook_user(
         json.to_string(user_transform.facebook_user_to_json(facebook_user)),
         200,
       )
-    Error(message) -> wisp.json_response(message, 500)
+    Error(message) -> wisp.json_response(message, 401)
   }
 }
 

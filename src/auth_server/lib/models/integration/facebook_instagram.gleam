@@ -477,37 +477,11 @@ fn create_or_update_files_on_page(
     facebook_product.images
     |> list.filter_map(fn(image) { image.id |> option.to_result(Nil) })
 
-  use existing_file_integrations <- result.try(
-    pog.transaction(ctx.db, fn(tx) {
-      sql.select_file_integrations_by_files_and_resource(
-        tx,
-        image_ids,
-        platform,
-        page_id,
-      )
-    })
-    |> result.map_error(fn(err) {
-      logger.log_error_with_context(
-        "facebook_instagram:create_files_on_page",
-        err,
-      )
-      "Could not query file integrations"
-    }),
-  )
+  let files_to_create = facebook_product.images
 
-  let new_file_ids = image_ids |> set.from_list
-  let existing_file_ids =
-    existing_file_integrations.rows
-    |> list.map(fn(file_integration) { file_integration.file_id })
-    |> set.from_list
-
-  let file_ids_to_create = set.difference(new_file_ids, existing_file_ids)
-  let files_to_create =
-    facebook_product.images
-    |> list.filter(fn(image) {
-      set.contains(file_ids_to_create, option.unwrap(image.id, 0))
-    })
-
+  // There is a file_integration table to keep track of which files are already created.
+  // But facebook seems to handle creation and deletion of images without me mapping the external and internal image ids.
+  // This might not be the case with other integrations so the table remains and is written to.
   use _ <- result.try(
     upload_files_to_page(ctx, files_to_create, platform, page_id, page_token)
     |> result.map_error(fn(error) {
