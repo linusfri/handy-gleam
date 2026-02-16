@@ -6,7 +6,7 @@
 }:
 let
   gleamPkgs = import inputs.gleam-pkgs { system = pkgs.stdenv.system; };
-  localDomain = "auth-server.local";
+  localDomain = "handy-gleam.local";
 in
 {
   imports = [
@@ -30,11 +30,11 @@ in
       APP_URL = config.env.CLOUDFLARE_TUNNEL_URL;
       FACEBOOK_BASE_URL = "graph.facebook.com/v24.0";
       FACEBOOK_REDIRECT_URI = "${config.env.CLOUDFLARE_TUNNEL_URL}/facebook-instagram/long-lived-token";
-      CLOUDFLARE_TUNNEL_URL = "https://auth-server-local.friikod.se";
+      CLOUDFLARE_TUNNEL_URL = "https://handy-gleam-local.friikod.se";
       STATIC_DIRECTORY = "static";
     };
 
-    services.auth-server.postgres = {
+    services.handy-gleam.postgres = {
       user = "handygleam";
       dbName = "handygleam";
     };

@@ -4,11 +4,11 @@
   ...
 }:
 let
-  cfg = config.services.auth-server.postgres;
+  cfg = config.services.handy-gleam.postgres;
   inherit (import ./scripts/constants.nix { inherit config; }) dbPermissionsAndOwnership;
 in
 {
-  options.services.auth-server.postgres = {
+  options.services.handy-gleam.postgres = {
     user = lib.mkOption {
       type = lib.types.str;
       description = "Database user.";
