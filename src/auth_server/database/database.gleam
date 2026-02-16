@@ -8,8 +8,8 @@ pub fn start_application_supervisor(pool_name: process.Name(pog.Message)) {
   let pool_child =
     pog.default_config(pool_name)
     |> pog.host(config().pghost)
-    |> pog.user("auth_server")
-    |> pog.database("auth_server")
+    |> pog.user("handygleam")
+    |> pog.database("handygleam")
     |> pog.pool_size(15)
     |> pog.supervised
 
