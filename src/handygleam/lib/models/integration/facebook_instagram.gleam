@@ -141,7 +141,7 @@ pub fn get_facebook_user(
         error,
       )
       AppError(
-        error: DbError,
+        error: error.error,
         message: "Could not get facebook token from database.",
       )
     }),

@@ -135,7 +135,7 @@ pub fn get_facebook_user(
         json.to_string(user_transform.facebook_user_to_json(facebook_user)),
         200,
       )
-    Error(message) -> to_http_response(message)
+    Error(error) -> to_http_response(error)
   }
 }
 
@@ -154,7 +154,7 @@ pub fn get_current_facebook_user_pages(
         )),
         200,
       )
-    Error(error_message) -> to_http_response(error_message)
+    Error(error) -> to_http_response(error)
   }
 }
 
