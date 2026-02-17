@@ -18,7 +18,7 @@ pub fn select_file_by_id_row_to_file(row: sql.SelectFileByIdRow) {
     filename: row.filename,
     file_type: row.file_type,
     context_type: row.context_type,
-    uri: option.Some(file_system.file_uri(
+    uri: option.Some(file_system.file_url(
       row.filename,
       row.context_type,
       row.file_type,
@@ -35,7 +35,7 @@ pub fn select_files_rows_to_files(row: sql.SelectFilesRow) {
     filename: row.filename,
     file_type: row.file_type,
     context_type: row.context_type,
-    uri: option.Some(file_system.file_uri(
+    uri: option.Some(file_system.file_url(
       row.filename,
       row.context_type,
       row.file_type,
