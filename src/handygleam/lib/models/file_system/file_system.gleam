@@ -147,7 +147,6 @@ pub fn file_url(
   }
 
   config().app_url
-  <> "/"
   <> serve_path
   <> "/"
   <> context_dir
@@ -183,5 +182,5 @@ pub fn file_url_from_file(file: File) {
     <> "/"
     <> file.filename
 
-  config().app_url <> "/" <> serve_path
+  config().app_url <> serve_path
 }
