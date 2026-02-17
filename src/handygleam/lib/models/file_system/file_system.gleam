@@ -67,7 +67,7 @@ pub fn create_file(file: File) {
       sql.Video -> "video"
       sql.Unknown -> "unknown"
     }
-  let upload_path = config().static_directory <> "/" <> directory
+  let upload_path = config().static_upload_path <> "/" <> directory
 
   case file.data {
     Some(base64_data) if base64_data != "" -> {
@@ -82,9 +82,9 @@ pub fn create_file(file: File) {
   }
 }
 
-/// Get file url for the file name in specified directory
+/// Get file uri for the provided file
 pub fn file_uri_from_file(file: File) -> String {
-  let static_files_directory = config().static_directory
+  let upload_path = config().static_upload_path
 
   let context_dir = case file.context_type {
     sql.Product -> "product"
@@ -94,7 +94,7 @@ pub fn file_uri_from_file(file: File) -> String {
 
   let file_type = file.file_type
 
-  static_files_directory
+  upload_path
   <> "/"
   <> context_dir
   <> "/"
@@ -112,7 +112,7 @@ pub fn file_uri(
   context_type: file_types.ContextType,
   file_type: file_types.FileType,
 ) {
-  let static_files_directory = config().static_directory
+  let upload_path = config().static_upload_path
 
   let context_dir = case context_type {
     sql.Product -> "product"
@@ -120,7 +120,35 @@ pub fn file_uri(
     sql.Misc -> "misc"
   }
 
-  static_files_directory
+  upload_path
+  <> "/"
+  <> context_dir
+  <> "/"
+  <> case file_type {
+    sql.Image -> "image"
+    sql.Video -> "video"
+    sql.Unknown -> "unknown"
+  }
+  <> "/"
+  <> filename
+}
+
+pub fn file_url(
+  filename: String,
+  context_type: file_types.ContextType,
+  file_type: file_types.FileType,
+) {
+  let serve_path = config().static_serve_path
+
+  let context_dir = case context_type {
+    sql.Product -> "product"
+    sql.User -> "user"
+    sql.Misc -> "misc"
+  }
+
+  config().app_url
+  <> "/"
+  <> serve_path
   <> "/"
   <> context_dir
   <> "/"
@@ -134,7 +162,26 @@ pub fn file_uri(
 }
 
 pub fn file_url_from_file(file: File) {
-  let dir_path = file_uri_from_file(file)
+  let context_dir = case file.context_type {
+    sql.Product -> "product"
+    sql.User -> "user"
+    sql.Misc -> "misc"
+  }
 
-  config().app_url <> "/" <> dir_path
+  let file_type_dir = case file.file_type {
+    sql.Image -> "image"
+    sql.Video -> "video"
+    sql.Unknown -> "unknown"
+  }
+
+  let serve_path =
+    config().static_serve_path
+    <> "/"
+    <> context_dir
+    <> "/"
+    <> file_type_dir
+    <> "/"
+    <> file.filename
+
+  config().app_url <> "/" <> serve_path
 }

@@ -10,7 +10,8 @@ pub type Config {
     admin_endpoint: String,
     app_url: String,
     pghost: String,
-    static_directory: String,
+    static_upload_path: String,
+    static_serve_path: String,
     facebook_base_url: String,
     facebook_app_id: String,
     facebook_redirect_uri: String,
@@ -26,7 +27,8 @@ pub fn get_config() -> Config {
     "ADMIN_ENDPOINT",
     "APP_URL",
     "PGHOST",
-    "STATIC_DIRECTORY",
+    "STATIC_UPLOAD_PATH",
+    "STATIC_SERVE_PATH",
     "FACEBOOK_BASE_URL",
     "FACEBOOK_APP_ID",
     "FACEBOOK_REDIRECT_URI",
@@ -49,7 +51,8 @@ pub fn get_config() -> Config {
   let assert Ok(admin_endpoint) = envoy.get("ADMIN_ENDPOINT")
   let assert Ok(app_url) = envoy.get("APP_URL")
   let assert Ok(pghost) = envoy.get("PGHOST")
-  let assert Ok(static_directory) = envoy.get("STATIC_DIRECTORY")
+  let assert Ok(static_upload_path) = envoy.get("STATIC_UPLOAD_PATH")
+  let assert Ok(static_serve_path) = envoy.get("STATIC_SERVE_PATH")
   let assert Ok(facebook_base_url) = envoy.get("FACEBOOK_BASE_URL")
   let assert Ok(facebook_app_id) = envoy.get("FACEBOOK_APP_ID")
   let assert Ok(facebook_redirect_uri) = envoy.get("FACEBOOK_REDIRECT_URI")
@@ -62,7 +65,8 @@ pub fn get_config() -> Config {
     admin_endpoint,
     app_url,
     pghost,
-    static_directory,
+    static_upload_path,
+    static_serve_path,
     facebook_base_url,
     facebook_app_id,
     facebook_redirect_uri,

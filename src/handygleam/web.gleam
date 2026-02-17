@@ -15,8 +15,8 @@ pub fn middleware(
   use req <- wisp.csrf_known_header_protection(req)
   use <- wisp.serve_static(
     req,
-    under: "/static",
-    from: config().static_directory,
+    under: config().static_serve_path,
+    from: config().static_upload_path,
   )
 
   handle_request(req)
