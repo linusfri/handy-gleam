@@ -32,7 +32,7 @@ in
       FACEBOOK_REDIRECT_URI = "${config.env.CLOUDFLARE_TUNNEL_URL}/facebook-instagram/long-lived-token";
       CLOUDFLARE_TUNNEL_URL = "https://handy-gleam-local.friikod.se";
       STATIC_UPLOAD_PATH = "static";
-      STATIC_SERVE_PATH = "static";
+      STATIC_SERVE_PATH = "/static";
     };
 
     services.handy-gleam.postgres = {
