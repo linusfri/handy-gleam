@@ -3,6 +3,10 @@ import gleam/list
 import gleam/option
 import gleam/result
 import gleam/string
+import handygleam/lib/models/error/app_error.{
+  type AppError, AppError, DbError, Internal, InvalidPayload, NotFound,
+  from_transaction,
+}
 import handygleam/lib/models/file/file_transform
 import handygleam/lib/models/file/file_types
 import handygleam/lib/models/file_system/file_system
@@ -15,34 +19,44 @@ pub fn delete_file(
   db: pog.Connection,
   file_id: Int,
   user: User,
-) -> Result(Nil, String) {
+) -> Result(Nil, AppError) {
   use deleted_row <- result.try(
     pog.transaction(db, fn(tx) {
       use select_file_result <- result.try(
         sql.select_file_by_id(tx, file_id, user.groups)
         |> result.map_error(fn(err) {
-          "file:delete_file:select_file_by_id | " <> string.inspect(err)
+          AppError(
+            error: DbError,
+            message: "file:delete_file:select_file_by_id | "
+              <> string.inspect(err),
+          )
         }),
       )
 
       use file_sql_row <- result.try(case select_file_result.rows {
         [first, ..] -> Ok(first)
-        [] -> Error("No image found with that ID")
+        [] ->
+          Error(AppError(
+            error: NotFound,
+            message: "No image found with that ID",
+          ))
       })
 
       // Delete from DB (only if user has access to the file)
       use _ <- result.try(
         sql.delete_file_by_id(tx, file_id, user.groups)
         |> result.map_error(fn(err) {
-          "file:delete_file:delete_file_by_id | " <> string.inspect(err)
+          AppError(
+            error: DbError,
+            message: "file:delete_file:delete_file_by_id | "
+              <> string.inspect(err),
+          )
         }),
       )
 
       Ok(file_sql_row)
     })
-    |> result.map_error(fn(err) {
-      "file:delete_file:pog.transaction | " <> string.inspect(err)
-    }),
+    |> result.map_error(from_transaction),
   )
 
   let file = file_transform.select_file_by_id_row_to_file(deleted_row)
@@ -50,7 +64,12 @@ pub fn delete_file(
   // Delete from disk
   use _ <- result.try(
     file_system.delete_file(file)
-    |> result.map_error(fn(err) { "file:filehandler:delete_file " <> err }),
+    |> result.map_error(fn(err) {
+      AppError(
+        error: err.error,
+        message: "file:filehandler:delete_file | " <> err.message,
+      )
+    }),
   )
 
   Ok(Nil)
@@ -60,10 +79,22 @@ pub fn get_files(
   db db: pog.Connection,
   file_types _filetypes: List(String),
   user user: User,
-) {
+) -> Result(List(sql.SelectFilesRow), AppError) {
   use get_files_result <- result.try(
-    pog.transaction(db, fn(tx) { sql.select_files(tx, user.groups) })
-    |> result.map_error(fn(err) { "file:get_files | " <> string.inspect(err) }),
+    pog.transaction(db, fn(tx) {
+      use files <- result.try(
+        sql.select_files(tx, user.groups)
+        |> result.map_error(fn(err) {
+          AppError(
+            error: DbError,
+            message: "file:get_files | " <> string.inspect(err),
+          )
+        }),
+      )
+
+      Ok(files)
+    })
+    |> result.map_error(from_transaction),
   )
 
   Ok(get_files_result.rows)
@@ -73,11 +104,14 @@ pub fn create_files(
   db db: pog.Connection,
   files files_data: dynamic.Dynamic,
   user user: User,
-) {
+) -> Result(String, AppError) {
   use files_upload_request <- result.try(
     file_transform.multiple_file_upload_request_decoder(files_data)
     |> result.map_error(fn(err) {
-      "file:create_files | " <> string.inspect(err)
+      AppError(
+        error: InvalidPayload,
+        message: "file:create_files | " <> string.inspect(err),
+      )
     }),
   )
 
@@ -96,8 +130,11 @@ pub fn create_files(
   // Create the "physical" files
   use _ <- result.try(
     list.try_map(files, fn(file) { file_system.create_file(file) })
-    |> result.map_error(fn(err) {
-      "file:create_files:create_file | " <> string.inspect(err)
+    |> result.map_error(fn(create_file_error) {
+      AppError(
+        error: create_file_error.error,
+        message: "file:create_files:create_file | " <> create_file_error.message,
+      )
     }),
   )
 
@@ -115,8 +152,12 @@ pub fn create_files(
     pog.transaction(db, fn(tx) {
       use created_files_result <- result.try(
         sql.create_files(tx, filenames, filetypes, contexts)
-        |> result.map_error(fn(err) {
-          "file:create_files:sql.create_files | " <> string.inspect(err)
+        |> result.map_error(fn(create_files_db_error) {
+          AppError(
+            error: DbError,
+            message: "file:create_files:sql.create_files | "
+              <> string.inspect(create_files_db_error),
+          )
         }),
       )
 
@@ -126,13 +167,17 @@ pub fn create_files(
       use created_files_user_groups <- result.try(
         sql.create_files_user_groups(tx, created_file_ids, user.groups)
         |> result.map_error(fn(err) {
-          "file:create_files:sql.create_files | " <> string.inspect(err)
+          AppError(
+            error: DbError,
+            message: "file:create_files:sql.create_files | "
+              <> string.inspect(err),
+          )
         }),
       )
 
       Ok(created_files_user_groups)
     })
-    |> result.map_error(fn(err) { string.inspect(err) }),
+    |> result.map_error(from_transaction),
   )
 
   Ok("Files created")

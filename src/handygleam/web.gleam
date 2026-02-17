@@ -1,4 +1,5 @@
 import handygleam/config.{config}
+import handygleam/lib/models/error/app_error.{to_http_response}
 import handygleam/lib/models/user/user
 import handygleam/lib/models/user/user_types.{type User}
 import handygleam/lib/utils/logger
@@ -28,9 +29,9 @@ pub fn authenticated_middleware(
 ) -> wisp.Response {
   case user.get_session_user(req) {
     Ok(user) -> handle_request(req, user)
-    Error(wisp_error) -> {
-      logger.log_error(wisp_error)
-      wisp_error
+    Error(app_error) -> {
+      logger.log_error(app_error)
+      to_http_response(app_error)
     }
   }
 }

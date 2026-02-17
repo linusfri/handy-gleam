@@ -4,6 +4,9 @@ import handygleam/config.{config}
 import handygleam/lib/models/auth/auth_transform
 import handygleam/lib/models/auth/auth_utils
 import handygleam/lib/models/auth/oauth
+import handygleam/lib/models/error/app_error.{
+  AppError, InvalidPayload, to_http_response,
+}
 import handygleam/lib/models/user/user_types.{type User}
 import handygleam/lib/utils/api_client
 import handygleam/lib/utils/logger
@@ -17,11 +20,14 @@ pub fn login(req: Request) {
     Ok(form_data) ->
       case oauth.build_login_response(form_data) {
         Ok(login_response) -> login_response
-        Error(error_response) -> error_response
+        Error(error_response) -> to_http_response(error_response)
       }
     Error(err) -> {
-      logger.log_error(err)
-      wisp.json_response("Invalid JSON body", 400)
+      logger.log_error_with_context("auth:login", err)
+      to_http_response(AppError(
+        error: InvalidPayload,
+        message: "Invalid login JSON body",
+      ))
     }
   }
 }
@@ -49,7 +55,7 @@ pub fn logout(req: Request, user: User) {
     Ok(res) if res.status > 200 && res.status < 300 ->
       wisp.json_response("User logged out", res.status)
     Ok(res) -> wisp.json_response(res.body, res.status)
-    Error(error_message) -> wisp.json_response(error_message, 500)
+    Error(error_response) -> to_http_response(error_response)
   }
 }
 
@@ -61,8 +67,12 @@ pub fn refresh_token(req: Request) {
     Ok(token_request) ->
       case oauth.build_refresh_response(token_request) {
         Ok(token) -> token
-        Error(error_response) -> error_response
+        Error(error_response) -> to_http_response(error_response)
       }
-    Error(_) -> wisp.json_response("Invalid refresh token", 400)
+    Error(_) ->
+      to_http_response(AppError(
+        error: InvalidPayload,
+        message: "Invalid refresh token",
+      ))
   }
 }

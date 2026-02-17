@@ -1,11 +1,14 @@
 import gleam/http
 import gleam/http/request
+import gleam/http/response
 import gleam/int
 import gleam/json
 import gleam/list
 import gleam/result
-import gleam/string
 import handygleam/global_types
+import handygleam/lib/models/error/app_error.{
+  AppError, InvalidPayload, to_http_response,
+}
 import handygleam/lib/models/product/product
 import handygleam/lib/models/product/product_transform
 import handygleam/lib/models/user/user_types.{type User}
@@ -13,7 +16,10 @@ import handygleam/lib/services/integration_service
 import handygleam/lib/utils/logger
 import wisp
 
-pub fn get_products(ctx: global_types.Context, user: User) {
+pub fn get_products(
+  ctx: global_types.Context,
+  user: User,
+) -> response.Response(wisp.Body) {
   case product.get_products(ctx, user) {
     Ok(products) -> {
       products
@@ -22,9 +28,9 @@ pub fn get_products(ctx: global_types.Context, user: User) {
       |> json.to_string
       |> wisp.json_response(200)
     }
-    Error(err) -> {
-      logger.log_error(err)
-      wisp.json_response(string.inspect(err), 500)
+    Error(error) -> {
+      logger.log_error(error)
+      to_http_response(error)
     }
   }
 }
@@ -59,9 +65,9 @@ pub fn create_product(
           )
       }
     }
-    Error(err) -> {
-      logger.log_error(err)
-      wisp.json_response(err, 500)
+    Error(error) -> {
+      logger.log_error(error)
+      to_http_response(error)
     }
   }
 }
@@ -77,7 +83,10 @@ pub fn delete_product(
   let delete_product_result = {
     use product_id <- result.try(
       int.parse(product_id_str)
-      |> result.replace_error("Invalid product id"),
+      |> result.replace_error(AppError(
+        error: InvalidPayload,
+        message: "Invalid product id",
+      )),
     )
 
     product.delete_product(product_id: product_id, context: ctx, user: user)
@@ -85,10 +94,9 @@ pub fn delete_product(
 
   case delete_product_result {
     Ok(_) -> wisp.json_response("Product deleted successfully", 200)
-    Error("Invalid product id") -> wisp.json_response("Invalid product id", 400)
     Error(err) -> {
       logger.log_error(err)
-      wisp.json_response(err, 500)
+      to_http_response(err)
     }
   }
 }
@@ -104,7 +112,10 @@ pub fn get_product(
   let get_product_result = {
     use product_id <- result.try(
       int.parse(product_id_str)
-      |> result.replace_error("Invalid product id"),
+      |> result.replace_error(AppError(
+        error: InvalidPayload,
+        message: "Invalid product id",
+      )),
     )
 
     product.get_product_by_id(product_id: product_id, context: ctx, user: user)
@@ -117,17 +128,9 @@ pub fn get_product(
         200,
       )
     }
-    Error("Invalid product id" as err) -> {
-      logger.log_error(err)
-      wisp.json_response(err, 400)
-    }
-    Error("product:get_product_by_id | Product not found" as err) -> {
-      logger.log_error(err)
-      wisp.json_response("Product not found or access denied", 404)
-    }
-    Error(err) -> {
-      logger.log_error(err)
-      wisp.json_response(err, 500)
+    Error(error) -> {
+      logger.log_error(error)
+      to_http_response(error)
     }
   }
 }
@@ -143,7 +146,10 @@ pub fn update_product(
   let update_product_result = {
     use product_id <- result.try(
       int.parse(product_id_str)
-      |> result.replace_error("Invalid product id"),
+      |> result.replace_error(AppError(
+        error: InvalidPayload,
+        message: "Invalid product id",
+      )),
     )
 
     product.update_product(
@@ -176,8 +182,9 @@ pub fn update_product(
           )
       }
     }
-    Error(err) -> {
-      wisp.json_response(err, 500)
+    Error(error) -> {
+      logger.log_error(error)
+      to_http_response(error)
     }
   }
 }

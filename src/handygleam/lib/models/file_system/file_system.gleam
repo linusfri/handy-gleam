@@ -3,6 +3,9 @@ import gleam/option.{Some}
 import gleam/result
 import gleam/string
 import handygleam/config.{config}
+import handygleam/lib/models/error/app_error.{
+  type AppError, AppError, Internal, InvalidPayload,
+}
 import handygleam/lib/models/file/file_types.{type File}
 import handygleam/lib/utils/logger
 import handygleam/sql
@@ -11,7 +14,7 @@ import simplifile
 pub fn save_base64_image(
   base64_string: String,
   output_path: String,
-) -> Result(Nil, String) {
+) -> Result(Nil, AppError) {
   // Remove data URL prefix if present (e.g., "data:image/png;base64,")
   let base64_data = case string.split(base64_string, ",") {
     [_prefix, data] -> data
@@ -24,13 +27,18 @@ pub fn save_base64_image(
         Ok(_) -> Ok(Nil)
         Error(err) -> {
           logger.log_error_with_context("save_base64_image:write_bits", err)
-          Error("Failed to write file: " <> string.inspect(err))
+          Error(
+            AppError(
+              error: Internal,
+              message: "Failed to write file: " <> string.inspect(err),
+            ),
+          )
         }
       }
     }
     Error(err) -> {
       logger.log_error_with_context("save_base64_image:base64_decode", err)
-      Error("Invalid base64 string")
+      Error(AppError(error: InvalidPayload, message: "Invalid base64 string"))
     }
   }
 }
@@ -41,10 +49,16 @@ pub fn save_base64_image(
 /// ```gleam
 /// delete_image(file_of_type_file)
 /// ```
-pub fn delete_file(file: File) -> Result(Nil, String) {
+pub fn delete_file(file: File) -> Result(Nil, AppError) {
   case simplifile.delete(file_uri_from_file(file)) {
     Ok(_) -> Ok(Nil)
-    Error(err) -> Error("Failed to delete image: " <> string.inspect(err))
+    Error(err) ->
+      Error(
+        AppError(
+          error: Internal,
+          message: "Failed to delete image: " <> string.inspect(err),
+        ),
+      )
   }
 }
 
@@ -78,7 +92,10 @@ pub fn create_file(file: File) {
       save_base64_image(base64_data, upload_path <> "/" <> clean_name)
       |> result.replace(clean_name)
     }
-    _ -> Error("Could not create file")
+    _ ->
+      Error(
+        AppError(error: InvalidPayload, message: "Could not create file"),
+      )
   }
 }
 

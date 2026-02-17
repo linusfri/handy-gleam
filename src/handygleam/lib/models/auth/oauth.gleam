@@ -12,6 +12,7 @@ import handygleam/lib/models/auth/auth_types.{
   type LoginFormData, type RefreshTokenRequest, LoginResponse,
 }
 import handygleam/lib/models/auth/auth_utils
+import handygleam/lib/models/error/app_error.{AppError, ExternalApi}
 import handygleam/lib/services/user_service
 import handygleam/lib/utils/api_client
 import handygleam/lib/utils/logger
@@ -41,7 +42,10 @@ fn request_token(token_request: http_request.Request(String)) {
       json.parse(token_response.body, decode.dynamic)
       |> result.map_error(fn(err) {
         logger.log_error_with_context("oauth:request_token", err)
-        "Failed to turn token into dynamic data"
+        AppError(
+          error: ExternalApi,
+          message: "Failed to turn token into dynamic data",
+        )
       }),
     )
 
@@ -49,7 +53,7 @@ fn request_token(token_request: http_request.Request(String)) {
       auth_transform.token_response_decoder(token_data)
       |> result.map_error(fn(err) {
         logger.log_error_with_context("oauth:request_token", err)
-        "Failed to decode token"
+        AppError(error: ExternalApi, message: "Failed to decode token")
       }),
     )
 
@@ -58,7 +62,7 @@ fn request_token(token_request: http_request.Request(String)) {
 
   case token {
     Ok(token) -> Ok(token)
-    Error(message) -> Error(wisp.json_response(message, 500))
+    Error(token_error) -> Error(token_error)
   }
 }
 
@@ -98,6 +102,6 @@ pub fn build_login_response(form_data: LoginFormData) {
       let json_body = auth_transform.login_response_encoder(login_response)
       Ok(wisp.json_response(json.to_string(json_body), 200))
     }
-    Error(wisp_response) -> Error(wisp_response)
+    Error(get_user_error) -> Error(get_user_error)
   }
 }

@@ -4,8 +4,10 @@ import gleam/int
 import gleam/json
 import gleam/list
 import gleam/result
-import gleam/string
 import handygleam/global_types
+import handygleam/lib/models/error/app_error.{
+  AppError, InvalidPayload, to_http_response,
+}
 import handygleam/lib/models/file/file
 import handygleam/lib/models/file/file_transform
 import handygleam/lib/models/user/user_types.{type User}
@@ -23,7 +25,10 @@ pub fn delete_file(
   let delete_file_result = {
     use file_id <- result.try(
       int.parse(file_id_str)
-      |> result.replace_error("Invalid file id"),
+      |> result.replace_error(AppError(
+        error: InvalidPayload,
+        message: "Invalid file id",
+      )),
     )
 
     file.delete_file(ctx.db, file_id, user)
@@ -31,17 +36,9 @@ pub fn delete_file(
 
   case delete_file_result {
     Ok(_) -> wisp.json_response("File deleted successfully", 200)
-    Error("Invalid file id" as err) -> {
-      logger.log_error(err)
-      wisp.json_response("Invalid file id", 400)
-    }
-    Error("No file found with that ID" as err) -> {
-      logger.log_error(err)
-      wisp.json_response(err, 404)
-    }
-    Error(err) -> {
-      logger.log_error(err)
-      wisp.json_response(err, 500)
+    Error(delete_file_error) -> {
+      logger.log_error(delete_file_error)
+      to_http_response(delete_file_error)
     }
   }
 }
@@ -60,9 +57,9 @@ pub fn get_files(
       |> json.to_string
       |> wisp.json_response(200)
     }
-    Error(err) -> {
-      logger.log_error(err)
-      wisp.json_response(string.inspect(err), 500)
+    Error(get_files_error) -> {
+      logger.log_error(get_files_error)
+      to_http_response(get_files_error)
     }
   }
 }
@@ -77,9 +74,9 @@ pub fn create_files(
 
   case file.create_files(ctx.db, json_body, user) {
     Ok(message) -> wisp.json_response(message, 201)
-    Error(error) -> {
-      logger.log_error(error)
-      wisp.json_response(error, 500)
+    Error(create_file_error) -> {
+      logger.log_error(create_file_error)
+      to_http_response(create_file_error)
     }
   }
 }

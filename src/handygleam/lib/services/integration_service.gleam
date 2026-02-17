@@ -4,6 +4,9 @@ import gleam/list
 import gleam/result
 import handygleam/global_types
 import handygleam/lib/models/auth/auth_utils
+import handygleam/lib/models/error/app_error.{
+  AppError, DbError, from_transaction, to_http_response,
+}
 import handygleam/lib/models/integration/facebook_instagram
 import handygleam/lib/models/integration/integration_transform
 import handygleam/lib/models/user/user
@@ -29,7 +32,7 @@ pub fn initiate_facebook_login(req: request.Request(wisp.Connection)) {
         200,
       )
     }
-    Error(error) -> wisp.json_response(error, 500)
+    Error(error) -> to_http_response(error)
   }
 }
 
@@ -51,7 +54,7 @@ pub fn request_long_lived_facebook_token(
           "integration_service:request_long_lived_facebook_token",
           err,
         )
-        wisp.json_response("Could not get session user", 500)
+        err
       }),
     )
 
@@ -62,7 +65,7 @@ pub fn request_long_lived_facebook_token(
           "integration_service:request_long_lived_facebook_token",
           err,
         )
-        wisp.json_response("Could not get facebook long lived token", 400)
+        err
       }),
     )
 
@@ -75,17 +78,18 @@ pub fn request_long_lived_facebook_token(
           facebook_token.access_token,
           facebook_token.token_type,
         )
+        |> result.map_error(fn(error) {
+          logger.log_error_with_context(
+            "integration_service:request_long_lived_facebook_token",
+            error,
+          )
+          AppError(
+            error: DbError,
+            message: "Could not create facebook token for user in database",
+          )
+        })
       })
-      |> result.map_error(fn(error) {
-        logger.log_error_with_context(
-          "integration_service:request_long_lived_facebook_token",
-          error,
-        )
-        wisp.json_response(
-          "Could not create facebook token for user in database",
-          500,
-        )
-      }),
+      |> result.map_error(from_transaction),
     )
 
     Ok(wisp.html_response(
@@ -116,7 +120,7 @@ pub fn request_long_lived_facebook_token(
 
   case response {
     Ok(response) -> response
-    Error(error_response) -> error_response
+    Error(error_response) -> to_http_response(error_response)
   }
 }
 
@@ -131,7 +135,7 @@ pub fn get_facebook_user(
         json.to_string(user_transform.facebook_user_to_json(facebook_user)),
         200,
       )
-    Error(message) -> wisp.json_response(message, 401)
+    Error(message) -> to_http_response(message)
   }
 }
 
@@ -150,9 +154,7 @@ pub fn get_current_facebook_user_pages(
         )),
         200,
       )
-    Error(error_message) -> {
-      wisp.json_response(error_message, 500)
-    }
+    Error(error_message) -> to_http_response(error_message)
   }
 }
 

@@ -5,10 +5,12 @@ import gleam/json
 import gleam/result
 import handygleam/config.{config}
 import handygleam/lib/models/auth/auth_utils
+import handygleam/lib/models/error/app_error.{
+  type AppError, AppError, ExternalApi, Unauthorized,
+}
 import handygleam/lib/models/user/user_transform
 import handygleam/lib/utils/api_client
 import handygleam/lib/utils/logger
-import wisp
 
 /// Requests user from authentication backend. In this case keycloak.
 pub fn request_get_user(access_token: String) {
@@ -29,7 +31,10 @@ pub fn request_get_user(access_token: String) {
     api_client.send_request(user_info_request)
     |> result.map_error(fn(err) {
       logger.log_error_with_context("user_service:request_get_user", err)
-      wisp.json_response("Failed to get user from auth server", 500)
+      AppError(
+        error: ExternalApi,
+        message: "Failed to get user from auth server",
+      )
     }),
   )
 
@@ -39,19 +44,31 @@ pub fn request_get_user(access_token: String) {
         json.parse(user_response.body, decode.dynamic)
         |> result.map_error(fn(err) {
           logger.log_error_with_context("user_service:request_get_user", err)
-          wisp.json_response("Failed to parse user response as JSON", 500)
+          AppError(
+            error: ExternalApi,
+            message: "Failed to parse user response as JSON",
+          )
         }),
       )
       use decoded_user <- result.try(
         user_transform.user_decoder(user_data)
         |> result.map_error(fn(err) {
           logger.log_error_with_context("user_service:request_get_user", err)
-          wisp.json_response("Failed to decode user data", 500)
+          AppError(
+            error: ExternalApi,
+            message: "Failed to decode user data",
+          )
         }),
       )
       Ok(decoded_user)
     }
-    401 -> Error(wisp.json_response("Unauthorized", 401))
-    status -> Error(wisp.json_response(user_response.body, status))
+    401 -> Error(AppError(error: Unauthorized, message: "Unauthorized"))
+    _ ->
+      Error(
+        AppError(
+          error: ExternalApi,
+          message: user_response.body,
+        ),
+      )
   }
 }

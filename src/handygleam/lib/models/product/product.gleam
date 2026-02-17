@@ -4,6 +4,9 @@ import gleam/option
 import gleam/result
 import gleam/string
 import handygleam/global_types
+import handygleam/lib/models/error/app_error.{
+  type AppError, AppError, DbError, InvalidPayload, NotFound,
+}
 import handygleam/lib/models/product/product_transform
 import handygleam/lib/models/user/user_types.{type User}
 import handygleam/sql.{type SelectProductsRow, SelectProductsRow}
@@ -13,10 +16,15 @@ pub fn create_product(
   data data: Dynamic,
   user user: User,
   context ctx: global_types.Context,
-) -> Result(sql.CreateProductRow, String) {
+) -> Result(sql.CreateProductRow, AppError) {
   use create_product_request <- result.try(
     product_transform.product_mutation_request_decoder(data)
-    |> result.map_error(fn(errors) { string.inspect(errors) }),
+    |> result.map_error(fn(errors) {
+      AppError(
+        error: InvalidPayload,
+        message: "Invalid product payload | " <> string.inspect(errors),
+      )
+    }),
   )
 
   let created_product_row =
@@ -30,13 +38,20 @@ pub fn create_product(
           create_product_request.price,
         )
         |> result.map_error(fn(err) {
-          "Could not create product | " <> string.inspect(err)
+          AppError(
+            error: DbError,
+            message: "Could not create product | " <> string.inspect(err),
+          )
         }),
       )
 
       use created_product_row <- result.try(case create_product_db_result.rows {
         [first, ..] -> Ok(first)
-        [] -> Error("No product ID returned from db query")
+        [] ->
+          Error(AppError(
+            error: DbError,
+            message: "Could not create product, could not select the product that was should have been created in DB.",
+          ))
       })
 
       use _ <- result.try(link_files_tx(
@@ -51,7 +66,13 @@ pub fn create_product(
           [created_product_row.id],
           user.groups,
         )
-        |> result.map_error(fn(err) { string.inspect(err) }),
+        |> result.map_error(fn(query_error) {
+          AppError(
+            error: DbError,
+            message: "Could not create products user groups | "
+              <> string.inspect(query_error),
+          )
+        }),
       )
 
       use _ <- result.try(create_product_integrations_tx(
@@ -62,9 +83,7 @@ pub fn create_product(
 
       Ok(created_product_row)
     })
-    |> result.map_error(fn(err) {
-      "Transaction failed: " <> string.inspect(err)
-    })
+    |> result.map_error(app_error.from_transaction)
 
   case created_product_row {
     Ok(product) ->
@@ -78,19 +97,19 @@ fn create_product_integrations_tx(
   tx: pog.Connection,
   product_id: Int,
   product_integrations: List(product_transform.ProductIntegration),
-) {
+) -> Result(pog.Returned(sql.CreateProductIntegrationsRow), AppError) {
   case product_integrations {
     [] -> Ok(pog.Returned(count: 0, rows: []))
     integrations -> {
-      let platforms =
-        integrations
-        |> list.map(fn(integration) { integration.platform })
-      let resource_ids =
-        integrations
-        |> list.map(fn(integration) { integration.resource_id })
-      let resource_types =
-        integrations
-        |> list.map(fn(integration) { integration.resource_type })
+      let #(platforms, resource_ids, resource_types) =
+        list.fold(integrations, #([], [], []), fn(acc, integration) {
+          let #(platforms, resource_ids, resource_types) = acc
+          #(
+            [integration.platform, ..platforms],
+            [integration.resource_id, ..resource_ids],
+            [integration.resource_type, ..resource_types],
+          )
+        })
 
       sql.create_product_integrations(
         tx,
@@ -99,7 +118,13 @@ fn create_product_integrations_tx(
         resource_ids,
         resource_types,
       )
-      |> result.map_error(fn(err) { string.inspect(err) })
+      |> result.map_error(fn(err) {
+        AppError(
+          error: DbError,
+          message: "Could not create product integrations | "
+            <> string.inspect(err),
+        )
+      })
     }
   }
 }
@@ -109,10 +134,15 @@ pub fn update_product(
   product_data product_data: Dynamic,
   context ctx: global_types.Context,
   user user: User,
-) {
+) -> Result(sql.UpdateProductRow, AppError) {
   use product_edit_request <- result.try(
     product_transform.product_mutation_request_decoder(product_data)
-    |> result.map_error(fn(err) { string.inspect(err) }),
+    |> result.map_error(fn(decode_error) {
+      AppError(
+        error: InvalidPayload,
+        message: "Invalid product payload | " <> string.inspect(decode_error),
+      )
+    }),
   )
 
   let updated_product_row =
@@ -127,21 +157,33 @@ pub fn update_product(
           product_edit_request.price,
           user.groups,
         )
-        |> result.map_error(fn(err) {
-          "Could not update product | " <> string.inspect(err)
+        |> result.map_error(fn(query_error) {
+          AppError(
+            error: DbError,
+            message: "Could not update product | "
+              <> string.inspect(query_error),
+          )
         }),
       )
 
       use _ <- result.try(
         sql.delete_product_files(tx, product_id, user.groups)
-        |> result.map_error(fn(err) {
-          "Could not delete existing product files | " <> string.inspect(err)
+        |> result.map_error(fn(query_error) {
+          AppError(
+            error: DbError,
+            message: "Could not delete existing product files | "
+              <> string.inspect(query_error),
+          )
         }),
       )
 
       use updated_product_row <- result.try(case update_product_db_result.rows {
         [first_product, ..] -> Ok(first_product)
-        [] -> Error("No product row returned from db query")
+        [] ->
+          Error(AppError(
+            error: NotFound,
+            message: "No product row returned from db query after update",
+          ))
       })
 
       use _ <- result.try(link_files_tx(
@@ -152,9 +194,7 @@ pub fn update_product(
 
       Ok(updated_product_row)
     })
-    |> result.map_error(fn(err) {
-      "Transaction failed: " <> string.inspect(err)
-    })
+    |> result.map_error(app_error.from_transaction)
 
   case updated_product_row {
     Ok(product) ->
@@ -168,31 +208,38 @@ pub fn delete_product(
   product_id product_id: Int,
   context ctx: global_types.Context,
   user user: User,
-) -> Result(Nil, String) {
+) -> Result(Nil, AppError) {
   pog.transaction(ctx.db, fn(tx) {
     use _ <- result.try(
       sql.delete_product(tx, product_id, user.groups)
-      |> result.map_error(fn(err) {
-        "delete_product:sql.delete_product | " <> string.inspect(err)
+      |> result.map_error(fn(query_error) {
+        AppError(
+          error: DbError,
+          message: "delete_product:sql.delete_product | "
+            <> string.inspect(query_error),
+        )
       }),
     )
 
     Ok(Nil)
   })
-  |> result.map_error(fn(err) { "Transaction failed: " <> string.inspect(err) })
+  |> result.map_error(app_error.from_transaction)
 }
 
 pub fn get_product_by_id(
   product_id product_id: Int,
   context ctx: global_types.Context,
   user user: User,
-) -> Result(SelectProductsRow, String) {
+) -> Result(SelectProductsRow, AppError) {
   pog.transaction(ctx.db, fn(tx) {
     use product_result <- result.try(
       sql.select_product_by_id(tx, product_id, user.groups)
-      |> result.map_error(fn(err) {
-        "product:get_product_by_id:sql.select_product_by_id | "
-        <> string.inspect(err)
+      |> result.map_error(fn(query_error) {
+        AppError(
+          error: DbError,
+          message: "product:get_product_by_id:sql.select_product_by_id | "
+            <> string.inspect(query_error),
+        )
       }),
     )
 
@@ -210,36 +257,48 @@ pub fn get_product_by_id(
           created_at: product.created_at,
           updated_at: product.updated_at,
         ))
-      [] -> Error("product:get_product_by_id | Product not found")
+      [] ->
+        Error(AppError(
+          error: NotFound,
+          message: "product:get_product_by_id | Product not found",
+        ))
     }
   })
-  |> result.map_error(fn(err) { "Transaction failed: " <> string.inspect(err) })
+  |> result.map_error(app_error.from_transaction)
 }
 
 pub fn get_products(
   ctx: global_types.Context,
   user: User,
-) -> Result(List(SelectProductsRow), String) {
+) -> Result(List(SelectProductsRow), AppError) {
   pog.transaction(ctx.db, fn(tx) {
-    case sql.select_products(tx, user.groups) {
-      Ok(products) -> {
-        Ok(products.rows)
-      }
-      Error(error) -> Error("product:get_products | " <> string.inspect(error))
-    }
+    use products <- result.try(
+      sql.select_products(tx, user.groups)
+      |> result.map_error(fn(query_error) {
+        AppError(
+          error: DbError,
+          message: "product:get_products | " <> string.inspect(query_error),
+        )
+      }),
+    )
+
+    Ok(products.rows)
   })
-  |> result.map_error(fn(err) { "Transaction failed: " <> string.inspect(err) })
+  |> result.map_error(app_error.from_transaction)
 }
 
 fn link_files_tx(
   tx: pog.Connection,
   product_id: Int,
   images: List(Int),
-) -> Result(Nil, String) {
+) -> Result(Nil, AppError) {
   sql.create_product_files(tx, product_id, images)
   |> result.map(fn(_) { Nil })
-  |> result.map_error(fn(err) {
-    "product:link_existing_images:sql.create_product_images | "
-    <> string.inspect(err)
+  |> result.map_error(fn(query_error) {
+    AppError(
+      error: DbError,
+      message: "product:link_existing_images:sql.create_product_images | "
+        <> string.inspect(query_error),
+    )
   })
 }

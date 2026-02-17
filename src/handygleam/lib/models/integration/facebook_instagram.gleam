@@ -5,10 +5,14 @@ import gleam/json
 import gleam/list
 import gleam/option.{None, Some}
 import gleam/result
-import gleam/set
+import gleam/string
 import handygleam/config.{config}
 import handygleam/global_types
 import handygleam/lib/models/auth/auth_utils
+import handygleam/lib/models/error/app_error.{
+  type AppError, AppError, DbError, ExternalApi, Internal, NotFound,
+  from_transaction,
+}
 import handygleam/lib/models/file/file_types
 import handygleam/lib/models/file_system/file_system
 import handygleam/lib/models/integration/integration_transform
@@ -25,7 +29,7 @@ import wisp
 
 pub fn initiate_login(
   req: request.Request(wisp.Connection),
-) -> Result(String, String) {
+) -> Result(String, AppError) {
   let token = auth_utils.get_session_token(req)
 
   let request =
@@ -56,16 +60,23 @@ pub fn initiate_login(
     status if status > 300 && status < 400 -> {
       list.key_find(res.headers, "location")
       |> result.map_error(fn(_) {
-        "Did not get a correct redirect response from facebook"
+        AppError(
+          error: ExternalApi,
+          message: "Did not get a correct redirect response from facebook",
+        )
       })
     }
-    _ -> Error("Unexpected response: " <> res.body)
+    _ ->
+      Error(AppError(
+        error: ExternalApi,
+        message: "Unexpected response: " <> res.body,
+      ))
   }
 }
 
 pub fn exchange_code_for_token(
   code: String,
-) -> Result(integration_types.FacebookToken, String) {
+) -> Result(integration_types.FacebookToken, AppError) {
   let token_request =
     request.Request(
       method: http.Get,
@@ -93,7 +104,10 @@ pub fn exchange_code_for_token(
         json.parse(response.body, decode.dynamic)
         |> result.map_error(fn(err) {
           logger.log_error(err)
-          "Failed to parse Facebook token response"
+          AppError(
+            error: ExternalApi,
+            message: "Failed to parse Facebook token response",
+          )
         }),
       )
 
@@ -103,10 +117,14 @@ pub fn exchange_code_for_token(
           "facebook_instagram:exchange_code_for_token",
           err,
         )
-        "Failed to decode Facebook token"
+        AppError(error: ExternalApi, message: "Failed to decode Facebook token")
       })
     }
-    _ -> Error("Facebook API error: " <> response.body)
+    _ ->
+      Error(AppError(
+        error: ExternalApi,
+        message: "Facebook API error: " <> response.body,
+      ))
   }
 }
 
@@ -122,7 +140,10 @@ pub fn get_facebook_user(
         "integration_service:get_facebook_user",
         error,
       )
-      "Could not get facebook token from database."
+      AppError(
+        error: DbError,
+        message: "Could not get facebook token from database.",
+      )
     }),
   )
 
@@ -141,7 +162,7 @@ pub fn get_facebook_user(
   let facebook_user = {
     use user_response <- result.try(case api_client.send_request(user_request) {
       Ok(response) -> Ok(response)
-      Error(error_response) -> Error(error_response <> error_response)
+      Error(error_response) -> Error(error_response)
     })
 
     use dynamic_user <- result.try(
@@ -151,7 +172,10 @@ pub fn get_facebook_user(
           "facebook_instagram:get_facebook_user",
           error,
         )
-        "Could not get user from facebook api response"
+        AppError(
+          error: ExternalApi,
+          message: "Could not get user from facebook api response",
+        )
       }),
     )
 
@@ -162,7 +186,10 @@ pub fn get_facebook_user(
           "facebook_instagram:get_facebook_user",
           error,
         )
-        "Failed to decode facebook user from reponse"
+        AppError(
+          error: ExternalApi,
+          message: "Failed to decode facebook user from response",
+        )
       }),
     )
 
@@ -179,17 +206,12 @@ pub fn get_current_facebook_user_pages(
   ctx: global_types.Context,
   user: user_types.User,
   integration: sql.IntegrationPlatform,
-) -> Result(integration_types.FacebookPagesResponse, String) {
-  use facebook_token <- result.try(
-    integration_utils.get_integration_token(ctx, user, integration)
-    |> result.map_error(fn(error) {
-      logger.log_error_with_context(
-        "facebook_instagram:get_current_facebook_user_pages",
-        error,
-      )
-      "Could not get facebook token from database."
-    }),
-  )
+) -> Result(integration_types.FacebookPagesResponse, AppError) {
+  use facebook_token <- result.try(integration_utils.get_integration_token(
+    ctx,
+    user,
+    integration,
+  ))
 
   let user_pages_request =
     request.Request(
@@ -206,7 +228,7 @@ pub fn get_current_facebook_user_pages(
   use user_pages_response <- result.try(
     case api_client.send_request(user_pages_request) {
       Ok(response) -> Ok(response)
-      Error(error_response) -> Error(error_response <> error_response)
+      Error(error_response) -> Error(error_response)
     },
   )
 
@@ -217,7 +239,10 @@ pub fn get_current_facebook_user_pages(
         "facebook_instagram:get_current_facebook_user_pages",
         error,
       )
-      "Could not parse facebook pages response"
+      AppError(
+        error: ExternalApi,
+        message: "Could not parse facebook pages response",
+      )
     }),
   )
 
@@ -227,7 +252,10 @@ pub fn get_current_facebook_user_pages(
       "facebook_instagram:get_current_facebook_user_pages",
       error,
     )
-    "Failed to decode facebook pages from response"
+    AppError(
+      error: ExternalApi,
+      message: "Failed to decode facebook pages from response",
+    )
   })
 }
 
@@ -235,7 +263,7 @@ pub fn fetch_and_cache_facebook_pages(
   ctx: global_types.Context,
   user: user_types.User,
   integration: sql.IntegrationPlatform,
-) -> Result(integration_types.FacebookPagesResponse, String) {
+) -> Result(integration_types.FacebookPagesResponse, AppError) {
   use pages_response <- result.try(get_current_facebook_user_pages(
     ctx,
     user,
@@ -254,7 +282,10 @@ pub fn fetch_and_cache_facebook_pages(
         "facebook_instagram:fetch_and_cache_facebook_pages",
         error,
       )
-      "Failed to cache page resources in database"
+      AppError(
+        error: DbError,
+        message: "Failed to cache page resources in database",
+      )
     }),
   )
 
@@ -266,7 +297,7 @@ pub fn get_page_token(
   user: user_types.User,
   integration: sql.IntegrationPlatform,
   page_id: String,
-) -> Result(String, String) {
+) -> Result(String, AppError) {
   use resource <- result.try(
     integration_utils.get_platform_resource(ctx, user, integration, page_id)
     |> result.map_error(fn(error) {
@@ -277,7 +308,11 @@ pub fn get_page_token(
 
   case resource.resource_token {
     Some(token) -> Ok(token)
-    None -> Error("Page token not found for page_id: " <> page_id)
+    None ->
+      Error(AppError(
+        error: NotFound,
+        message: "Page token not found for page_id: " <> page_id,
+      ))
   }
 }
 
@@ -294,14 +329,22 @@ pub fn update_or_create_post_on_page(
         "facebook_instagram:update_or_create_post",
         err,
       )
-      "Did not found any facebook page integrations for this product"
+      AppError(
+        error: DbError,
+        message: "Did not find any facebook page integrations for this product",
+      )
     }),
   )
 
   // Just pick the first one for MVP
   use facebook_page_resource <- result.try(
     list.first(facebook_pages.rows)
-    |> result.map_error(fn(_) { "No facebook page found for this product" }),
+    |> result.map_error(fn(_) {
+      AppError(
+        error: NotFound,
+        message: "No facebook page found for this product",
+      )
+    }),
   )
   let page_id = option.unwrap(facebook_page_resource.resource_id, "")
 
@@ -379,9 +422,16 @@ fn create_post_on_page(
     )
     |> request.set_query(query_params)
 
-  use create_post_response <- result.try(api_client.send_request(
-    create_post_request,
-  ))
+  use create_post_response <- result.try(
+    api_client.send_request(create_post_request)
+    |> result.map_error(fn(err) {
+      logger.log_error_with_context(
+        "facebook_instagram:create_post_on_page",
+        err,
+      )
+      err
+    }),
+  )
 
   let facebook_id_decoder = {
     use id <- decode.field("id", decode.string)
@@ -395,7 +445,10 @@ fn create_post_on_page(
         "facebook_instagram:create_post_on_page",
         err,
       )
-      "Failed to decode returned post id from Facebook response"
+      AppError(
+        error: ExternalApi,
+        message: "Failed to decode returned post id from Facebook response",
+      )
     }),
   )
 
@@ -407,14 +460,18 @@ fn create_post_on_page(
         facebook_product.id,
         page_id,
       )
+      |> result.map_error(fn(error) {
+        logger.log_error_with_context(
+          "facebook_instagram:create_post_on_page",
+          error,
+        )
+        AppError(
+          error: DbError,
+          message: "Failed to update product integration in db when creating post on facebook page",
+        )
+      })
     })
-    |> result.map_error(fn(error) {
-      logger.log_error_with_context(
-        "facebook_instagram:create_post_on_page",
-        error,
-      )
-      "Failed to update product integration in db when creating post on facebook page"
-    }),
+    |> result.map_error(from_transaction),
   )
 
   Ok("Post created")
@@ -458,10 +515,9 @@ fn update_post_on_page(
     )
     |> request.set_query(query_params)
 
-  let res = case api_client.send_request(update_post_request) {
-    Ok(_) -> Ok("Post updated")
-    Error(error) -> Error(error)
-  }
+  let res =
+    api_client.send_request(update_post_request)
+    |> result.map(fn(_) { "Post updated" })
 
   res
 }
@@ -472,7 +528,7 @@ fn create_or_update_files_on_page(
   platform: sql.IntegrationPlatform,
   page_id: String,
   page_token: String,
-) -> Result(List(String), String) {
+) -> Result(List(String), AppError) {
   let image_ids =
     facebook_product.images
     |> list.filter_map(fn(image) { image.id |> option.to_result(Nil) })
@@ -489,7 +545,10 @@ fn create_or_update_files_on_page(
         "facebook_instagram:create_files_on_page",
         error,
       )
-      "Failed to upload and save files in transaction"
+      AppError(
+        error: DbError,
+        message: "Failed to upload and save files in transaction",
+      )
     }),
   )
 
@@ -504,20 +563,25 @@ fn get_all_files_for_page_and_platform(
 ) {
   use all_file_integrations <- result.try(
     pog.transaction(ctx.db, fn(tx) {
-      sql.select_file_integrations_by_files_and_resource(
-        tx,
-        file_ids,
-        platform,
-        page_id,
+      use integrations <- result.try(
+        sql.select_file_integrations_by_files_and_resource(
+          tx,
+          file_ids,
+          platform,
+          page_id,
+        )
+        |> result.map_error(fn(err) {
+          AppError(
+            error: DbError,
+            message: "Could not query file integrations after upload | "
+              <> string.inspect(err),
+          )
+        }),
       )
+
+      Ok(integrations)
     })
-    |> result.map_error(fn(err) {
-      logger.log_error_with_context(
-        "facebook_instagram:create_files_on_page",
-        err,
-      )
-      "Could not query file integrations after upload"
-    }),
+    |> result.map_error(from_transaction),
   )
 
   Ok(
@@ -537,7 +601,7 @@ fn upload_files_to_page(
   platform: sql.IntegrationPlatform,
   page_id: String,
   page_token: String,
-) -> Result(Nil, String) {
+) -> Result(Nil, AppError) {
   files
   |> list.try_each(fn(file) {
     let upload_request =
@@ -565,7 +629,10 @@ fn upload_files_to_page(
           "facebook_instagram:upload_files_to_page",
           err,
         )
-        "Failed to upload photo to Facebook"
+        AppError(
+          error: ExternalApi,
+          message: "Failed to upload photo to Facebook",
+        )
       }),
     )
 
@@ -581,12 +648,18 @@ fn upload_files_to_page(
           "facebook_instagram:upload_files_to_page",
           err,
         )
-        "Failed to decode photo id from Facebook response"
+        AppError(
+          error: ExternalApi,
+          message: "Failed to decode photo id from Facebook response",
+        )
       }),
     )
 
     // Save the file integration to database
-    use file_id <- result.try(file.id |> option.to_result("File has no ID"))
+    use file_id <- result.try(
+      file.id
+      |> option.to_result(AppError(error: Internal, message: "File has no ID")),
+    )
 
     // TODO: Redo this query to not run in a loop.
     use _ <- result.try(
@@ -599,14 +672,18 @@ fn upload_files_to_page(
           external_id,
           json.null(),
         )
+        |> result.map_error(fn(error) {
+          logger.log_error_with_context(
+            "facebook_instagram:upload_files_to_page",
+            error,
+          )
+          AppError(
+            error: DbError,
+            message: "Failed to save file integration to database",
+          )
+        })
       })
-      |> result.map_error(fn(error) {
-        logger.log_error_with_context(
-          "facebook_instagram:upload_files_to_page",
-          error,
-        )
-        "Failed to save file integration to database"
-      }),
+      |> result.map_error(from_transaction),
     )
 
     Ok(Nil)

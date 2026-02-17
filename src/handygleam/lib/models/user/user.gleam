@@ -1,5 +1,6 @@
 import gleam/json
 import handygleam/lib/models/auth/auth_utils
+import handygleam/lib/models/error/app_error.{type AppError}
 import handygleam/lib/models/user/user_transform.{user_encoder}
 import handygleam/lib/models/user/user_types.{type User}
 import handygleam/lib/services/user_service
@@ -15,13 +16,13 @@ pub fn get_session_user(req) {
 
   case user_service.request_get_user(token) {
     Ok(user) -> Ok(user)
-    Error(wisp_error) -> Error(wisp_error)
+    Error(app_error) -> Error(app_error)
   }
 }
 
 pub fn get_session_user_by_token(token: String) {
   case user_service.request_get_user(token) {
     Ok(user) -> Ok(user)
-    Error(wisp_error) -> Error(wisp_error)
+    Error(app_error) -> Error(app_error)
   }
 }
