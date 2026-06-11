@@ -30,7 +30,7 @@ pub fn handle_request(req: Request, ctx: global_types.Context) -> Response {
     }
 
     ["verdaccio", "verify"], Post -> {
-      wisp.json_response("[\"$authenticated\"]", 200)
+      wisp.json_response("{\"groups\":[\"$authenticated\"]}", 200)
     }
 
     ["products"], method -> {
