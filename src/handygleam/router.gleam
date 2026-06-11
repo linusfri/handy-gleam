@@ -29,6 +29,10 @@ pub fn handle_request(req: Request, ctx: global_types.Context) -> Response {
       }
     }
 
+    ["verdaccio", "verify"], Post -> {
+      wisp.json_response("[\"$authenticated\"]", 200)
+    }
+
     ["products"], method -> {
       use req, user <- web.authenticated_middleware(req)
       case method {
