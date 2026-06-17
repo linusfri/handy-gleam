@@ -6,7 +6,7 @@ import gleam/result
 import handygleam/config.{config}
 import handygleam/lib/models/auth/auth_utils
 import handygleam/lib/models/error/app_error.{
-  type AppError, AppError, ExternalApi, Unauthorized,
+  AppError, ExternalApi, Unauthorized,
 }
 import handygleam/lib/models/user/user_transform
 import handygleam/lib/utils/api_client
@@ -54,21 +54,12 @@ pub fn request_get_user(access_token: String) {
         user_transform.user_decoder(user_data)
         |> result.map_error(fn(err) {
           logger.log_error_with_context("user_service:request_get_user", err)
-          AppError(
-            error: ExternalApi,
-            message: "Failed to decode user data",
-          )
+          AppError(error: ExternalApi, message: "Failed to decode user data")
         }),
       )
       Ok(decoded_user)
     }
     401 -> Error(AppError(error: Unauthorized, message: "Unauthorized"))
-    _ ->
-      Error(
-        AppError(
-          error: ExternalApi,
-          message: user_response.body,
-        ),
-      )
+    _ -> Error(AppError(error: ExternalApi, message: user_response.body))
   }
 }

@@ -4,8 +4,7 @@ import gleam/option
 import gleam/result
 import gleam/string
 import handygleam/lib/models/error/app_error.{
-  type AppError, AppError, DbError, Internal, InvalidPayload, NotFound,
-  from_transaction,
+  type AppError, AppError, DbError, InvalidPayload, NotFound, from_transaction,
 }
 import handygleam/lib/models/file/file_transform
 import handygleam/lib/models/file/file_types

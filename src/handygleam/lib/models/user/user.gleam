@@ -1,6 +1,5 @@
 import gleam/json
 import handygleam/lib/models/auth/auth_utils
-import handygleam/lib/models/error/app_error.{type AppError}
 import handygleam/lib/models/user/user_transform.{user_encoder}
 import handygleam/lib/models/user/user_types.{type User}
 import handygleam/lib/services/user_service
