@@ -12,7 +12,7 @@ pub fn login_form_decoder(form_data: Dynamic) {
     use password <- decode.field("password", decode.string)
     use username <- decode.field("username", decode.string)
     use device_name <- decode.field("device_name", decode.string)
-    let client_id = "auth-server"
+    let client_id = "handy-gleam"
     let grant_type = "password"
 
     let body = [
@@ -64,7 +64,7 @@ pub fn token_response_decoder(json_data: Dynamic) {
 pub fn refresh_token_request_decoder(json_data: Dynamic) {
   let refresh_token_decoder = {
     use refresh_token <- decode.field("refresh_token", decode.string)
-    let client_id = "auth-server"
+    let client_id = "handy-gleam"
 
     decode.success(auth_types.RefreshTokenRequest(refresh_token:, client_id:))
   }
