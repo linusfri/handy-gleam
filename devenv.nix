@@ -25,8 +25,8 @@ in
     ];
 
     env = {
-      AUTH_ENDPOINT = "keycloak.friikod.se/realms/auth-server/protocol/openid-connect";
-      ADMIN_ENDPOINT = "keycloak.friikod.se/admin/realms/auth-server";
+      AUTH_ENDPOINT = "keycloak.friikod.se/realms/master/protocol/openid-connect";
+      ADMIN_ENDPOINT = "keycloak.friikod.se/admin/realms/master";
       APP_URL = config.env.CLOUDFLARE_TUNNEL_URL;
       FACEBOOK_BASE_URL = "graph.facebook.com/v24.0";
       FACEBOOK_REDIRECT_URI = "${config.env.CLOUDFLARE_TUNNEL_URL}/facebook-instagram/long-lived-token";
